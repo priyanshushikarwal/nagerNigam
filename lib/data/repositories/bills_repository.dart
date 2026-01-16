@@ -29,6 +29,8 @@ class BillsDao {
       b.scrap_amount,
   b.scrap_gst_amount,
       b.md_ld_amount,
+      b.md_ld_status,
+      b.md_ld_released_date,
       b.empty_oil_issued,
       b.empty_oil_returned,
       b.tds_amount,
@@ -294,6 +296,39 @@ class BillsDao {
     );
   }
 
+  /// Update the CSD Release Date of a bill
+  Future<void> updateCsdReleaseDate(int billId, DateTime releaseDate) async {
+    await (_database.update(_database.bills)
+      ..where((tbl) => tbl.id.equals(billId))).write(
+      db.BillsCompanion(
+        csdReleasedDate: Value(releaseDate),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// Update only the MD/LD Status of a bill
+  Future<void> updateMdLdStatus(int billId, String mdLdStatus) async {
+    await (_database.update(_database.bills)
+      ..where((tbl) => tbl.id.equals(billId))).write(
+      db.BillsCompanion(
+        mdLdStatus: Value(mdLdStatus),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// Update the MD/LD Release Date of a bill
+  Future<void> updateMdLdReleaseDate(int billId, DateTime releaseDate) async {
+    await (_database.update(_database.bills)
+      ..where((tbl) => tbl.id.equals(billId))).write(
+      db.BillsCompanion(
+        mdLdReleasedDate: Value(releaseDate),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   Future<List<Bill>> _fetchBills({
     required String whereClause,
     required List<Variable> variables,
@@ -391,6 +426,8 @@ class BillsDao {
       scrapAmount: row.read<double>('scrap_amount'),
       scrapGstAmount: row.read<double>('scrap_gst_amount'),
       mdLdAmount: row.read<double>('md_ld_amount'),
+      mdLdStatus: row.readNullable<String>('md_ld_status') ?? 'Pending',
+      mdLdReleasedDate: row.readNullable<DateTime>('md_ld_released_date'),
       emptyOilIssued: row.read<double>('empty_oil_issued'),
       emptyOilReturned: row.read<double>('empty_oil_returned'),
       tdsAmount: row.read<double>('tds_amount'),
@@ -449,6 +486,11 @@ class BillsDao {
       scrapAmount: Value(bill.scrapAmount),
       scrapGstAmount: Value(bill.scrapGstAmount),
       mdLdAmount: Value(bill.mdLdAmount),
+      mdLdStatus: Value(bill.mdLdStatus),
+      mdLdReleasedDate:
+          bill.mdLdReleasedDate != null
+              ? Value(bill.mdLdReleasedDate!)
+              : const Value.absent(),
       emptyOilIssued: Value(bill.emptyOilIssued),
       emptyOilReturned: Value(bill.emptyOilReturned),
       tdsAmount: Value(bill.tdsAmount),

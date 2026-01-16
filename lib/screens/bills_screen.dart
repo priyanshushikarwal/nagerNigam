@@ -8,6 +8,7 @@ import '../state/firm_providers.dart';
 import '../state/database_providers.dart';
 import '../state/tender_providers.dart';
 import '../state/client_firm_providers.dart';
+import '../state/service_providers.dart';
 import '../services/sync_service.dart';
 
 class BillsScreen extends ConsumerStatefulWidget {
@@ -26,7 +27,6 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
   bool _isLoading = true;
   String _searchQuery = '';
   String _statusFilter = 'All';
-  int? _selectedClientFirmId; // Client firm filter
 
   final _currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
   final _dateFormat = DateFormat('dd-MM-yyyy');
@@ -93,10 +93,11 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
     }
 
     // Apply client firm filter
-    if (_selectedClientFirmId != null) {
+    final selectedClientFirmId = ref.read(billsFilterClientFirmIdProvider);
+    if (selectedClientFirmId != null) {
       filtered =
           filtered
-              .where((b) => b.clientFirmId == _selectedClientFirmId)
+              .where((b) => b.clientFirmId == selectedClientFirmId)
               .toList();
     }
 
@@ -284,6 +285,54 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
     }
   }
 
+  // Export selected bills as PDF
+  Future<void> _exportSelectedBills() async {
+    if (_selectedBillIds.isEmpty) {
+      displayInfoBar(
+        context,
+        builder:
+            (context, close) => const InfoBar(
+              title: Text('No Bills Selected'),
+              content: Text('Please select at least one bill to export'),
+              severity: InfoBarSeverity.warning,
+            ),
+      );
+      return;
+    }
+
+    try {
+      final pdfService = ref.read(pdfServiceProvider);
+      await pdfService.exportSelectedBillsPdf(
+        billIds: _selectedBillIds.toList(),
+      );
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder:
+              (context, close) => InfoBar(
+                title: const Text('Success'),
+                content: Text(
+                  'Exported ${_selectedBillIds.length} bill(s) to PDF',
+                ),
+                severity: InfoBarSeverity.success,
+              ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder:
+              (context, close) => InfoBar(
+                title: const Text('Error'),
+                content: Text('Failed to export PDF: $e'),
+                severity: InfoBarSeverity.error,
+              ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return ScaffoldPage(
@@ -300,7 +349,56 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                   'Bills Management',
                   style: FluentTheme.of(context).typography.title,
                 ),
+                // Show selected count badge
+                if (_selectedBillIds.isNotEmpty) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.lightest,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '${_selectedBillIds.length} selected',
+                      style: TextStyle(
+                        color: Colors.blue.darkest,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
                 const Spacer(),
+                // Export Selected Button (only visible when bills are selected)
+                if (_selectedBillIds.isNotEmpty) ...[
+                  Button(
+                    onPressed: _exportSelectedBills,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(FluentIcons.pdf, size: 16),
+                        const SizedBox(width: 6),
+                        Text('Export ${_selectedBillIds.length} Bill(s)'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Clear Selection Button
+                  Button(
+                    onPressed: () => _toggleSelectAll(false),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(FluentIcons.clear, size: 16),
+                        SizedBox(width: 6),
+                        Text('Clear Selection'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 FilledButton(
                   onPressed: _showAddBillDialog,
                   child: Row(
@@ -356,7 +454,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                       return clientFirmsAsync.when(
                         data: (firms) {
                           return ComboBox<int?>(
-                            value: _selectedClientFirmId,
+                            value: ref.watch(billsFilterClientFirmIdProvider),
                             isExpanded: true,
                             placeholder: const Text('All Client Firms'),
                             items: [
@@ -374,9 +472,11 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                                   ),
                             ],
                             onChanged: (value) {
-                              setState(() {
-                                _selectedClientFirmId = value;
-                              });
+                              ref
+                                  .read(
+                                    billsFilterClientFirmIdProvider.notifier,
+                                  )
+                                  .state = value;
                               _applyFilters();
                             },
                           );

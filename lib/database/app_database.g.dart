@@ -1634,6 +1634,30 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _mdLdStatusMeta = const VerificationMeta(
+    'mdLdStatus',
+  );
+  @override
+  late final GeneratedColumn<String> mdLdStatus = GeneratedColumn<String>(
+    'md_ld_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Pending'),
+  );
+  static const VerificationMeta _mdLdReleasedDateMeta = const VerificationMeta(
+    'mdLdReleasedDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> mdLdReleasedDate =
+      GeneratedColumn<DateTime>(
+        'md_ld_released_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _emptyOilIssuedMeta = const VerificationMeta(
     'emptyOilIssued',
   );
@@ -1895,6 +1919,8 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
     scrapAmount,
     scrapGstAmount,
     mdLdAmount,
+    mdLdStatus,
+    mdLdReleasedDate,
     emptyOilIssued,
     emptyOilReturned,
     tdsAmount,
@@ -2066,6 +2092,24 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
         mdLdAmount.isAcceptableOrUnknown(
           data['md_ld_amount']!,
           _mdLdAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('md_ld_status')) {
+      context.handle(
+        _mdLdStatusMeta,
+        mdLdStatus.isAcceptableOrUnknown(
+          data['md_ld_status']!,
+          _mdLdStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('md_ld_released_date')) {
+      context.handle(
+        _mdLdReleasedDateMeta,
+        mdLdReleasedDate.isAcceptableOrUnknown(
+          data['md_ld_released_date']!,
+          _mdLdReleasedDateMeta,
         ),
       );
     }
@@ -2319,6 +2363,15 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
             DriftSqlType.double,
             data['${effectivePrefix}md_ld_amount'],
           )!,
+      mdLdStatus:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}md_ld_status'],
+          )!,
+      mdLdReleasedDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}md_ld_released_date'],
+      ),
       emptyOilIssued:
           attachedDatabase.typeMapping.read(
             DriftSqlType.double,
@@ -2441,6 +2494,8 @@ class Bill extends DataClass implements Insertable<Bill> {
   final double scrapAmount;
   final double scrapGstAmount;
   final double mdLdAmount;
+  final String mdLdStatus;
+  final DateTime? mdLdReleasedDate;
   final double emptyOilIssued;
   final double emptyOilReturned;
   final double tdsAmount;
@@ -2481,6 +2536,8 @@ class Bill extends DataClass implements Insertable<Bill> {
     required this.scrapAmount,
     required this.scrapGstAmount,
     required this.mdLdAmount,
+    required this.mdLdStatus,
+    this.mdLdReleasedDate,
     required this.emptyOilIssued,
     required this.emptyOilReturned,
     required this.tdsAmount,
@@ -2534,6 +2591,10 @@ class Bill extends DataClass implements Insertable<Bill> {
     map['scrap_amount'] = Variable<double>(scrapAmount);
     map['scrap_gst_amount'] = Variable<double>(scrapGstAmount);
     map['md_ld_amount'] = Variable<double>(mdLdAmount);
+    map['md_ld_status'] = Variable<String>(mdLdStatus);
+    if (!nullToAbsent || mdLdReleasedDate != null) {
+      map['md_ld_released_date'] = Variable<DateTime>(mdLdReleasedDate);
+    }
     map['empty_oil_issued'] = Variable<double>(emptyOilIssued);
     map['empty_oil_returned'] = Variable<double>(emptyOilReturned);
     map['tds_amount'] = Variable<double>(tdsAmount);
@@ -2615,6 +2676,11 @@ class Bill extends DataClass implements Insertable<Bill> {
       scrapAmount: Value(scrapAmount),
       scrapGstAmount: Value(scrapGstAmount),
       mdLdAmount: Value(mdLdAmount),
+      mdLdStatus: Value(mdLdStatus),
+      mdLdReleasedDate:
+          mdLdReleasedDate == null && nullToAbsent
+              ? const Value.absent()
+              : Value(mdLdReleasedDate),
       emptyOilIssued: Value(emptyOilIssued),
       emptyOilReturned: Value(emptyOilReturned),
       tdsAmount: Value(tdsAmount),
@@ -2696,6 +2762,10 @@ class Bill extends DataClass implements Insertable<Bill> {
       scrapAmount: serializer.fromJson<double>(json['scrapAmount']),
       scrapGstAmount: serializer.fromJson<double>(json['scrapGstAmount']),
       mdLdAmount: serializer.fromJson<double>(json['mdLdAmount']),
+      mdLdStatus: serializer.fromJson<String>(json['mdLdStatus']),
+      mdLdReleasedDate: serializer.fromJson<DateTime?>(
+        json['mdLdReleasedDate'],
+      ),
       emptyOilIssued: serializer.fromJson<double>(json['emptyOilIssued']),
       emptyOilReturned: serializer.fromJson<double>(json['emptyOilReturned']),
       tdsAmount: serializer.fromJson<double>(json['tdsAmount']),
@@ -2741,6 +2811,8 @@ class Bill extends DataClass implements Insertable<Bill> {
       'scrapAmount': serializer.toJson<double>(scrapAmount),
       'scrapGstAmount': serializer.toJson<double>(scrapGstAmount),
       'mdLdAmount': serializer.toJson<double>(mdLdAmount),
+      'mdLdStatus': serializer.toJson<String>(mdLdStatus),
+      'mdLdReleasedDate': serializer.toJson<DateTime?>(mdLdReleasedDate),
       'emptyOilIssued': serializer.toJson<double>(emptyOilIssued),
       'emptyOilReturned': serializer.toJson<double>(emptyOilReturned),
       'tdsAmount': serializer.toJson<double>(tdsAmount),
@@ -2784,6 +2856,8 @@ class Bill extends DataClass implements Insertable<Bill> {
     double? scrapAmount,
     double? scrapGstAmount,
     double? mdLdAmount,
+    String? mdLdStatus,
+    Value<DateTime?> mdLdReleasedDate = const Value.absent(),
     double? emptyOilIssued,
     double? emptyOilReturned,
     double? tdsAmount,
@@ -2826,6 +2900,11 @@ class Bill extends DataClass implements Insertable<Bill> {
     scrapAmount: scrapAmount ?? this.scrapAmount,
     scrapGstAmount: scrapGstAmount ?? this.scrapGstAmount,
     mdLdAmount: mdLdAmount ?? this.mdLdAmount,
+    mdLdStatus: mdLdStatus ?? this.mdLdStatus,
+    mdLdReleasedDate:
+        mdLdReleasedDate.present
+            ? mdLdReleasedDate.value
+            : this.mdLdReleasedDate,
     emptyOilIssued: emptyOilIssued ?? this.emptyOilIssued,
     emptyOilReturned: emptyOilReturned ?? this.emptyOilReturned,
     tdsAmount: tdsAmount ?? this.tdsAmount,
@@ -2893,6 +2972,12 @@ class Bill extends DataClass implements Insertable<Bill> {
               : this.scrapGstAmount,
       mdLdAmount:
           data.mdLdAmount.present ? data.mdLdAmount.value : this.mdLdAmount,
+      mdLdStatus:
+          data.mdLdStatus.present ? data.mdLdStatus.value : this.mdLdStatus,
+      mdLdReleasedDate:
+          data.mdLdReleasedDate.present
+              ? data.mdLdReleasedDate.value
+              : this.mdLdReleasedDate,
       emptyOilIssued:
           data.emptyOilIssued.present
               ? data.emptyOilIssued.value
@@ -2962,6 +3047,8 @@ class Bill extends DataClass implements Insertable<Bill> {
           ..write('scrapAmount: $scrapAmount, ')
           ..write('scrapGstAmount: $scrapGstAmount, ')
           ..write('mdLdAmount: $mdLdAmount, ')
+          ..write('mdLdStatus: $mdLdStatus, ')
+          ..write('mdLdReleasedDate: $mdLdReleasedDate, ')
           ..write('emptyOilIssued: $emptyOilIssued, ')
           ..write('emptyOilReturned: $emptyOilReturned, ')
           ..write('tdsAmount: $tdsAmount, ')
@@ -3007,6 +3094,8 @@ class Bill extends DataClass implements Insertable<Bill> {
     scrapAmount,
     scrapGstAmount,
     mdLdAmount,
+    mdLdStatus,
+    mdLdReleasedDate,
     emptyOilIssued,
     emptyOilReturned,
     tdsAmount,
@@ -3051,6 +3140,8 @@ class Bill extends DataClass implements Insertable<Bill> {
           other.scrapAmount == this.scrapAmount &&
           other.scrapGstAmount == this.scrapGstAmount &&
           other.mdLdAmount == this.mdLdAmount &&
+          other.mdLdStatus == this.mdLdStatus &&
+          other.mdLdReleasedDate == this.mdLdReleasedDate &&
           other.emptyOilIssued == this.emptyOilIssued &&
           other.emptyOilReturned == this.emptyOilReturned &&
           other.tdsAmount == this.tdsAmount &&
@@ -3093,6 +3184,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
   final Value<double> scrapAmount;
   final Value<double> scrapGstAmount;
   final Value<double> mdLdAmount;
+  final Value<String> mdLdStatus;
+  final Value<DateTime?> mdLdReleasedDate;
   final Value<double> emptyOilIssued;
   final Value<double> emptyOilReturned;
   final Value<double> tdsAmount;
@@ -3133,6 +3226,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     this.scrapAmount = const Value.absent(),
     this.scrapGstAmount = const Value.absent(),
     this.mdLdAmount = const Value.absent(),
+    this.mdLdStatus = const Value.absent(),
+    this.mdLdReleasedDate = const Value.absent(),
     this.emptyOilIssued = const Value.absent(),
     this.emptyOilReturned = const Value.absent(),
     this.tdsAmount = const Value.absent(),
@@ -3174,6 +3269,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     this.scrapAmount = const Value.absent(),
     this.scrapGstAmount = const Value.absent(),
     this.mdLdAmount = const Value.absent(),
+    this.mdLdStatus = const Value.absent(),
+    this.mdLdReleasedDate = const Value.absent(),
     this.emptyOilIssued = const Value.absent(),
     this.emptyOilReturned = const Value.absent(),
     this.tdsAmount = const Value.absent(),
@@ -3218,6 +3315,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     Expression<double>? scrapAmount,
     Expression<double>? scrapGstAmount,
     Expression<double>? mdLdAmount,
+    Expression<String>? mdLdStatus,
+    Expression<DateTime>? mdLdReleasedDate,
     Expression<double>? emptyOilIssued,
     Expression<double>? emptyOilReturned,
     Expression<double>? tdsAmount,
@@ -3259,6 +3358,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
       if (scrapAmount != null) 'scrap_amount': scrapAmount,
       if (scrapGstAmount != null) 'scrap_gst_amount': scrapGstAmount,
       if (mdLdAmount != null) 'md_ld_amount': mdLdAmount,
+      if (mdLdStatus != null) 'md_ld_status': mdLdStatus,
+      if (mdLdReleasedDate != null) 'md_ld_released_date': mdLdReleasedDate,
       if (emptyOilIssued != null) 'empty_oil_issued': emptyOilIssued,
       if (emptyOilReturned != null) 'empty_oil_returned': emptyOilReturned,
       if (tdsAmount != null) 'tds_amount': tdsAmount,
@@ -3302,6 +3403,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     Value<double>? scrapAmount,
     Value<double>? scrapGstAmount,
     Value<double>? mdLdAmount,
+    Value<String>? mdLdStatus,
+    Value<DateTime?>? mdLdReleasedDate,
     Value<double>? emptyOilIssued,
     Value<double>? emptyOilReturned,
     Value<double>? tdsAmount,
@@ -3343,6 +3446,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
       scrapAmount: scrapAmount ?? this.scrapAmount,
       scrapGstAmount: scrapGstAmount ?? this.scrapGstAmount,
       mdLdAmount: mdLdAmount ?? this.mdLdAmount,
+      mdLdStatus: mdLdStatus ?? this.mdLdStatus,
+      mdLdReleasedDate: mdLdReleasedDate ?? this.mdLdReleasedDate,
       emptyOilIssued: emptyOilIssued ?? this.emptyOilIssued,
       emptyOilReturned: emptyOilReturned ?? this.emptyOilReturned,
       tdsAmount: tdsAmount ?? this.tdsAmount,
@@ -3423,6 +3528,12 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     }
     if (mdLdAmount.present) {
       map['md_ld_amount'] = Variable<double>(mdLdAmount.value);
+    }
+    if (mdLdStatus.present) {
+      map['md_ld_status'] = Variable<String>(mdLdStatus.value);
+    }
+    if (mdLdReleasedDate.present) {
+      map['md_ld_released_date'] = Variable<DateTime>(mdLdReleasedDate.value);
     }
     if (emptyOilIssued.present) {
       map['empty_oil_issued'] = Variable<double>(emptyOilIssued.value);
@@ -3511,6 +3622,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
           ..write('scrapAmount: $scrapAmount, ')
           ..write('scrapGstAmount: $scrapGstAmount, ')
           ..write('mdLdAmount: $mdLdAmount, ')
+          ..write('mdLdStatus: $mdLdStatus, ')
+          ..write('mdLdReleasedDate: $mdLdReleasedDate, ')
           ..write('emptyOilIssued: $emptyOilIssued, ')
           ..write('emptyOilReturned: $emptyOilReturned, ')
           ..write('tdsAmount: $tdsAmount, ')
@@ -5682,6 +5795,8 @@ typedef $$BillsTableCreateCompanionBuilder =
       Value<double> scrapAmount,
       Value<double> scrapGstAmount,
       Value<double> mdLdAmount,
+      Value<String> mdLdStatus,
+      Value<DateTime?> mdLdReleasedDate,
       Value<double> emptyOilIssued,
       Value<double> emptyOilReturned,
       Value<double> tdsAmount,
@@ -5724,6 +5839,8 @@ typedef $$BillsTableUpdateCompanionBuilder =
       Value<double> scrapAmount,
       Value<double> scrapGstAmount,
       Value<double> mdLdAmount,
+      Value<String> mdLdStatus,
+      Value<DateTime?> mdLdReleasedDate,
       Value<double> emptyOilIssued,
       Value<double> emptyOilReturned,
       Value<double> tdsAmount,
@@ -5916,6 +6033,16 @@ class $$BillsTableFilterComposer extends Composer<_$AppDatabase, $BillsTable> {
 
   ColumnFilters<double> get mdLdAmount => $composableBuilder(
     column: $table.mdLdAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mdLdStatus => $composableBuilder(
+    column: $table.mdLdStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get mdLdReleasedDate => $composableBuilder(
+    column: $table.mdLdReleasedDate,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6221,6 +6348,16 @@ class $$BillsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get mdLdStatus => $composableBuilder(
+    column: $table.mdLdStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get mdLdReleasedDate => $composableBuilder(
+    column: $table.mdLdReleasedDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get emptyOilIssued => $composableBuilder(
     column: $table.emptyOilIssued,
     builder: (column) => ColumnOrderings(column),
@@ -6484,6 +6621,16 @@ class $$BillsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get mdLdStatus => $composableBuilder(
+    column: $table.mdLdStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get mdLdReleasedDate => $composableBuilder(
+    column: $table.mdLdReleasedDate,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<double> get emptyOilIssued => $composableBuilder(
     column: $table.emptyOilIssued,
     builder: (column) => column,
@@ -6737,6 +6884,8 @@ class $$BillsTableTableManager
                 Value<double> scrapAmount = const Value.absent(),
                 Value<double> scrapGstAmount = const Value.absent(),
                 Value<double> mdLdAmount = const Value.absent(),
+                Value<String> mdLdStatus = const Value.absent(),
+                Value<DateTime?> mdLdReleasedDate = const Value.absent(),
                 Value<double> emptyOilIssued = const Value.absent(),
                 Value<double> emptyOilReturned = const Value.absent(),
                 Value<double> tdsAmount = const Value.absent(),
@@ -6777,6 +6926,8 @@ class $$BillsTableTableManager
                 scrapAmount: scrapAmount,
                 scrapGstAmount: scrapGstAmount,
                 mdLdAmount: mdLdAmount,
+                mdLdStatus: mdLdStatus,
+                mdLdReleasedDate: mdLdReleasedDate,
                 emptyOilIssued: emptyOilIssued,
                 emptyOilReturned: emptyOilReturned,
                 tdsAmount: tdsAmount,
@@ -6819,6 +6970,8 @@ class $$BillsTableTableManager
                 Value<double> scrapAmount = const Value.absent(),
                 Value<double> scrapGstAmount = const Value.absent(),
                 Value<double> mdLdAmount = const Value.absent(),
+                Value<String> mdLdStatus = const Value.absent(),
+                Value<DateTime?> mdLdReleasedDate = const Value.absent(),
                 Value<double> emptyOilIssued = const Value.absent(),
                 Value<double> emptyOilReturned = const Value.absent(),
                 Value<double> tdsAmount = const Value.absent(),
@@ -6859,6 +7012,8 @@ class $$BillsTableTableManager
                 scrapAmount: scrapAmount,
                 scrapGstAmount: scrapGstAmount,
                 mdLdAmount: mdLdAmount,
+                mdLdStatus: mdLdStatus,
+                mdLdReleasedDate: mdLdReleasedDate,
                 emptyOilIssued: emptyOilIssued,
                 emptyOilReturned: emptyOilReturned,
                 tdsAmount: tdsAmount,

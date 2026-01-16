@@ -80,19 +80,18 @@ class PdfService {
     Tender? tender;
 
     if (billId != null) {
+      // When a specific billId is provided, only generate PDF for that single bill
       final bill = await _billsDao.getBillById(billId);
       if (bill == null) {
         throw StateError('Bill not found');
       }
       bills = [bill];
+      // Get tender info for reference number, but DON'T replace the single bill
       if (bill.tenderId != null) {
         tender = await _tnDao.getTenderById(bill.tenderId!);
-        final siblings = await _billsDao.getBillsByTender(bill.tenderId!);
-        if (siblings.isNotEmpty) {
-          bills = siblings;
-        }
       }
     } else {
+      // When tenderId is provided, generate PDF for ALL bills of that tender
       final tnId = tenderId!;
       bills = await _billsDao.getBillsByTender(tnId);
       if (bills.isEmpty) {
@@ -123,34 +122,35 @@ class PdfService {
     final pdf = pw.Document(theme: _createPdfTheme());
     pdf.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.symmetric(horizontal: 36, vertical: 40),
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.all(20), // 20pt margins as specified
         build: (context) {
           return [
-            _referenceLine(referenceNo, letterDate),
+            // Header Row 1: No. and Date
+            _buildHeaderRow1(referenceNo, letterDate),
+            pw.SizedBox(height: 8),
+            // Header Row 2: Subject and TN No.
+            _buildHeaderRow2(tnNumber),
+            pw.SizedBox(height: 8),
+            // Horizontal divider
+            pw.Divider(thickness: 0.5, color: PdfColors.black),
             pw.SizedBox(height: 12),
-            _subjectSection(
-              subject: 'PAYMENT OF YOUR BILL',
-              tnNumber: tnNumber,
-            ),
-            pw.SizedBox(height: 10),
-            _invoiceTitleSection(
-              tender: tender,
-              bills: enrichedBills,
-              referenceNo: referenceNo,
+            // Bill Summary Section (Two Columns)
+            _buildBillSummarySection(
               workOrderNo: workOrderNo,
               workOrderDate: workOrderDate,
+              tnNumber: tnNumber,
+              totalAmount: totals.amountOfBill,
               chequeNo: chequeNo,
               chequeDate: chequeDate,
-              totalAmount: totals.amountOfBill,
               amountPayable: totalPayable,
             ),
-            pw.SizedBox(height: 12),
-            _deductionsTable(rows, totals),
-            pw.SizedBox(height: 12),
-            _closingNotes(firm: firm),
-            pw.SizedBox(height: 20),
-            _footerSignature(firm: firm),
+            pw.SizedBox(height: 16),
+            // Main Table
+            _buildLandscapeTable(rows, totals),
+            pw.SizedBox(height: 16),
+            // Footer
+            _buildFooterNotes(),
           ];
         },
       ),
@@ -166,6 +166,95 @@ class PdfService {
 
   Future<String> exportBillPdf({required int billId}) async {
     return generateBillPdf(billId: billId);
+  }
+
+  /// Generate PDF for multiple selected bills
+  Future<String> exportSelectedBillsPdf({required List<int> billIds}) async {
+    if (billIds.isEmpty) {
+      throw ArgumentError('At least one bill ID must be provided');
+    }
+
+    // Load Unicode fonts first
+    await _loadFonts();
+
+    // Fetch all selected bills
+    final List<Bill> bills = [];
+    for (final billId in billIds) {
+      final bill = await _billsDao.getBillById(billId);
+      if (bill != null) {
+        bills.add(bill);
+      }
+    }
+
+    if (bills.isEmpty) {
+      throw StateError('No bills found for the selected IDs');
+    }
+
+    // Get tender if all bills belong to the same tender
+    Tender? tender;
+    final tenderIds =
+        bills.map((b) => b.tenderId).where((id) => id != null).toSet();
+    if (tenderIds.length == 1 && tenderIds.first != null) {
+      tender = await _tnDao.getTenderById(tenderIds.first!);
+    }
+
+    bills.sort((a, b) => a.billDate.compareTo(b.billDate));
+    final firm = await _loadFirm(bills.first.firmId);
+    final enrichedBills = await _ensurePaymentsLoaded(bills);
+    final rows = _buildBillTableRows(enrichedBills);
+    final totals = _BillTableTotals.fromRows(rows);
+    final workOrderNo = _resolveWorkOrder(enrichedBills, tender);
+
+    final letterDate = DateTime.now();
+    final tnNumber = tender?.tnNumber ?? enrichedBills.first.tnNumber;
+    final referenceNo = _buildReferenceNumber(firm.code, tnNumber, letterDate);
+    final workOrderDate = _resolveWorkOrderDate(enrichedBills, tender);
+    final latestPayment = _resolveLatestPayment(enrichedBills);
+    final chequeNo =
+        (latestPayment?.transactionNo ?? '').isEmpty
+            ? '________'
+            : latestPayment!.transactionNo!;
+    final chequeDate = latestPayment?.paymentDate;
+    final totalPayable = totals.amountPayable;
+
+    final pdf = pw.Document(theme: _createPdfTheme());
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.all(20),
+        build: (context) {
+          return [
+            _buildHeaderRow1(referenceNo, letterDate),
+            pw.SizedBox(height: 8),
+            _buildHeaderRow2(tnNumber),
+            pw.SizedBox(height: 8),
+            pw.Divider(thickness: 0.5, color: PdfColors.black),
+            pw.SizedBox(height: 12),
+            _buildBillSummarySection(
+              workOrderNo: workOrderNo,
+              workOrderDate: workOrderDate,
+              tnNumber: tnNumber,
+              totalAmount: totals.amountOfBill,
+              chequeNo: chequeNo,
+              chequeDate: chequeDate,
+              amountPayable: totalPayable,
+            ),
+            pw.SizedBox(height: 16),
+            _buildLandscapeTable(rows, totals),
+            pw.SizedBox(height: 16),
+            _buildFooterNotes(),
+          ];
+        },
+      ),
+    );
+
+    final bytes = await pdf.save();
+    await Printing.layoutPdf(onLayout: (format) async => bytes);
+
+    final timestamp = _timestampFormat.format(DateTime.now());
+    final filename = 'selected_bills_${billIds.length}_$timestamp.pdf';
+    final savedPath = await _savePdf(bytes, filename);
+    return savedPath;
   }
 
   /// Generate Payment Details PDF for a tender showing payment information
@@ -439,9 +528,229 @@ class PdfService {
     return results;
   }
 
+  // ==================== NEW LANDSCAPE PDF METHODS ====================
+
+  /// Header Row 1: No. (left) and Date (right)
+  pw.Widget _buildHeaderRow1(String referenceNo, DateTime letterDate) {
+    final style = pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold);
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text('No.: $referenceNo', style: style),
+        pw.Text('Date: ${_displayDate.format(letterDate)}', style: style),
+      ],
+    );
+  }
+
+  /// Header Row 2: SUB (left) and T.N. No. (right)
+  pw.Widget _buildHeaderRow2(String tnNumber) {
+    final style = pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold);
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      children: [
+        pw.Text('SUB: PAYMENT OF YOUR BILL', style: style),
+        pw.Text('T.N. No.: $tnNumber', style: style),
+      ],
+    );
+  }
+
+  /// Bill Summary Section - Two Column Layout
+  pw.Widget _buildBillSummarySection({
+    required String? workOrderNo,
+    required DateTime? workOrderDate,
+    required String tnNumber,
+    required double totalAmount,
+    required String chequeNo,
+    required DateTime? chequeDate,
+    required double amountPayable,
+  }) {
+    final labelStyle = pw.TextStyle(
+      fontSize: 10,
+      fontWeight: pw.FontWeight.bold,
+    );
+    final valueStyle = const pw.TextStyle(fontSize: 10);
+
+    String formatDate(DateTime? date) =>
+        date != null ? _displayDate.format(date) : '________';
+
+    pw.Widget row(String label, String value) {
+      return pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(vertical: 2),
+        child: pw.Row(
+          children: [
+            pw.SizedBox(
+              width: 120,
+              child: pw.Text('$label:', style: labelStyle),
+            ),
+            pw.Expanded(child: pw.Text(value, style: valueStyle)),
+          ],
+        ),
+      );
+    }
+
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        // Left Column
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              row('W.O. No.', workOrderNo ?? '________'),
+              row('TN Number', tnNumber),
+              row('Total Bill Amount', _indianCurrency.format(totalAmount)),
+              row('Cheque/DD No.', chequeNo),
+            ],
+          ),
+        ),
+        pw.SizedBox(width: 40),
+        // Right Column
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              row('W.O. Date', formatDate(workOrderDate)),
+              row('Cheque Date', formatDate(chequeDate)),
+              row('Amount Payable', _indianCurrency.format(amountPayable)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Main Landscape Table matching reference image exactly
+  pw.Widget _buildLandscapeTable(
+    List<_BillTableRow> rows,
+    _BillTableTotals totals,
+  ) {
+    // Column headers matching reference image exactly (13 columns)
+    const headers = [
+      'S.\nNO',
+      'BILL',
+      'BILL NO.',
+      'AMOUNT\nOF BILL',
+      'I.TAX\n(TDS@\n1%)',
+      'SC\n(SAP)',
+      'GST ON\nSCRAP',
+      'IN TAX\n(TCS\n1%)',
+      'TCS\n(₹1%)',
+      'MD\n(NPW)',
+      'GST\n(TDS @)',
+      'TOTAL DED.',
+      'AMOUNT\nPAYABLE',
+    ];
+
+    String currency(double value) => _indianCurrency.format(value);
+    String date(DateTime value) => _tableDate.format(value);
+
+    // Build data rows (13 columns)
+    final dataRows = <List<String>>[];
+    for (final row in rows) {
+      dataRows.add([
+        row.serial.toString(),
+        row.billNo,
+        date(row.billDate),
+        currency(row.amountOfBill),
+        currency(row.tds),
+        currency(row.scrap),
+        currency(row.gstOnScrap),
+        currency(row.tcs),
+        currency(row.tcs),
+        currency(row.md),
+        currency(row.gstTds),
+        currency(row.totalDeduction),
+        currency(row.amountPayable),
+      ]);
+    }
+
+    // Add TOTAL row
+    dataRows.add([
+      'TOTAL',
+      '',
+      '',
+      currency(totals.amountOfBill),
+      currency(totals.tds),
+      currency(totals.scrap),
+      currency(totals.gstOnScrap),
+      currency(totals.tcs),
+      currency(totals.tcs),
+      currency(totals.md),
+      currency(totals.gstTds),
+      currency(totals.totalDeduction),
+      currency(totals.amountPayable),
+    ]);
+
+    // A4 Landscape: 842 - 40 margins = ~800 usable width
+    return pw.TableHelper.fromTextArray(
+      headers: headers,
+      data: dataRows,
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+      headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.white),
+      headerAlignment: pw.Alignment.center,
+      cellStyle: const pw.TextStyle(fontSize: 9),
+      cellHeight: 28,
+      // All cells centered
+      cellAlignments: {
+        0: pw.Alignment.center, // S.NO
+        1: pw.Alignment.center, // BILL
+        2: pw.Alignment.center, // BILL NO.
+        3: pw.Alignment.center, // AMOUNT OF BILL
+        4: pw.Alignment.center, // I.TAX
+        5: pw.Alignment.center, // SC
+        6: pw.Alignment.center, // GST ON SCRAP
+        7: pw.Alignment.center, // IN TAX
+        8: pw.Alignment.center, // TCS
+        9: pw.Alignment.center, // MD
+        10: pw.Alignment.center, // GST
+        11: pw.Alignment.center, // TOTAL DED.
+        12: pw.Alignment.center, // AMOUNT PAYABLE
+      },
+      columnWidths: {
+        0: const pw.FixedColumnWidth(30), // S.NO
+        1: const pw.FixedColumnWidth(60), // BILL
+        2: const pw.FixedColumnWidth(65), // BILL NO.
+        3: const pw.FixedColumnWidth(70), // AMOUNT OF BILL
+        4: const pw.FixedColumnWidth(55), // I.TAX
+        5: const pw.FixedColumnWidth(50), // SC
+        6: const pw.FixedColumnWidth(60), // GST ON SCRAP
+        7: const pw.FixedColumnWidth(55), // IN TAX
+        8: const pw.FixedColumnWidth(50), // TCS
+        9: const pw.FixedColumnWidth(50), // MD
+        10: const pw.FixedColumnWidth(55), // GST
+        11: const pw.FixedColumnWidth(70), // TOTAL DED.
+        12: const pw.FixedColumnWidth(75), // AMOUNT PAYABLE
+      },
+      rowDecoration: const pw.BoxDecoration(color: PdfColors.white),
+    );
+  }
+
+  /// Footer Notes
+  pw.Widget _buildFooterNotes() {
+    final style = const pw.TextStyle(fontSize: 10);
+    final boldStyle = pw.TextStyle(
+      fontSize: 10,
+      fontWeight: pw.FontWeight.bold,
+    );
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          'Kindly send us stamped receipt immediately for our reference record.',
+          style: style,
+        ),
+        pw.SizedBox(height: 6),
+        pw.Text('End: As above', style: boldStyle),
+      ],
+    );
+  }
+
+  // ==================== END NEW METHODS ====================
+
   pw.Widget _referenceLine(String referenceNo, DateTime letterDate) {
     final headingStyle = pw.TextStyle(
-      fontSize: 10,
+      fontSize: 11,
       fontWeight: pw.FontWeight.bold,
     );
     return pw.Row(
@@ -449,7 +758,7 @@ class PdfService {
       children: [
         pw.Text('No.: $referenceNo', style: headingStyle),
         pw.Text(
-          'Dated: ${_displayDate.format(letterDate)}',
+          'Date : ${_displayDate.format(letterDate)}',
           style: headingStyle,
         ),
       ],
@@ -1025,57 +1334,66 @@ class PdfService {
     required double amountPayable,
   }) {
     String formatDate(DateTime? value) =>
-        value == null ? '________' : _displayDate.format(value);
+        value == null ? '' : _displayDate.format(value);
 
-    final rows = <MapEntry<String, String>>[
-      MapEntry('W.O. No.', workOrderNo ?? '-'),
-      MapEntry('W.O. Date', formatDate(workOrderDate)),
-      MapEntry('TN Number', tender?.tnNumber ?? bills.first.tnNumber),
-      //MapEntry('Reference No.', referenceNo),
-      MapEntry('Total Bill Amount', _indianCurrency.format(totalAmount)),
-      MapEntry('Cheque/DD No.', chequeNo),
-      MapEntry('Cheque Date', formatDate(chequeDate)),
-      MapEntry('Amount Payable', _indianCurrency.format(amountPayable)),
-    ];
+    final tnNumber = tender?.tnNumber ?? bills.first.tnNumber;
+    final billDate = bills.first.billDate;
+
+    final labelStyle = pw.TextStyle(
+      fontSize: 11,
+      fontWeight: pw.FontWeight.bold,
+    );
+    final valueStyle = const pw.TextStyle(fontSize: 11);
+
+    // Helper to create a row with label and value
+    pw.Widget row(String label, String value) {
+      return pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(vertical: 3),
+        child: pw.Row(
+          children: [
+            pw.SizedBox(
+              width: 130,
+              child: pw.Text('$label:', style: labelStyle),
+            ),
+            pw.Expanded(child: pw.Text(value, style: valueStyle)),
+          ],
+        ),
+      );
+    }
 
     return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
-      decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey500, width: 0.8),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-      ),
-      child: pw.Table(
-        columnWidths: const {
-          0: pw.FlexColumnWidth(2),
-          1: pw.FlexColumnWidth(3),
-        },
-        defaultVerticalAlignment: pw.TableCellVerticalAlignment.middle,
-        children:
-            rows
-                .map(
-                  (entry) => pw.TableRow(
-                    children: [
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.symmetric(
-                          vertical: 6,
-                          horizontal: 6,
-                        ),
-                        child: pw.Text(
-                          '${entry.key}:',
-                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                        ),
-                      ),
-                      pw.Padding(
-                        padding: const pw.EdgeInsets.symmetric(
-                          vertical: 6,
-                          horizontal: 6,
-                        ),
-                        child: pw.Text(entry.value),
-                      ),
-                    ],
-                  ),
-                )
-                .toList(),
+      margin: const pw.EdgeInsets.symmetric(vertical: 12),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          // Left Column
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                row('W.O. No.', workOrderNo ?? ''),
+                row('TN Number', formatDate(billDate)),
+                row('Total Bill Amount', _indianCurrency.format(totalAmount)),
+                row('Cheque/DD No.', '________'),
+                row('Amount Payable', _indianCurrency.format(amountPayable)),
+              ],
+            ),
+          ),
+          pw.SizedBox(width: 60),
+          // Right Column
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                row('W.O. Date', formatDate(workOrderDate)),
+                row('TN Number', tnNumber),
+                row('Cheque/DD No.', '________'),
+                row('Cheque Date', formatDate(chequeDate)),
+                row('Amount Payable', _indianCurrency.format(amountPayable)),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1084,44 +1402,43 @@ class PdfService {
     List<_BillTableRow> rows,
     _BillTableTotals totals,
   ) {
+    // Headers matching the reference image format exactly
     const headers = [
-      'S.NO',
+      'S.\nNO',
+      'BILL',
       'BILL NO.',
-      'DATE',
-      'AMOUNT OF BILL',
-      'CSD',
-      'I.TAX (TDS 2%)',
-      'SCRAP',
-      'GST ON SCRAP',
-      'IN TAX (TCS 1%)',
-      'MD (NPW)',
-      'MQ (DE)',
-      'GST TDS @ 2%',
+      'AMOUNT\nOF BILL',
+      'I.TAX\n(TDS@\n1%)',
+      'SC\n(SAP)',
+      'GST ON\nSCRAP',
+      'IN TAX\n(TCS\n1%)',
+      'TCS\n(₹1%)',
+      'MD\n(NPW)',
+      'GST\n(TDS @)',
       'TOTAL DED.',
-      'AMOUNT PAYABLE',
+      'AMOUNT\nPAYABLE',
     ];
 
     String currency(double value) => _indianCurrency.format(value);
     String date(DateTime value) => _tableDate.format(value);
 
-    // Prepare data rows
+    // Prepare data rows matching reference format
     final dataRows = <List<String>>[];
     for (final row in rows) {
       dataRows.add([
         row.serial.toString(),
-        row.billNo,
-        date(row.billDate),
-        currency(row.amountOfBill),
-        currency(row.csd),
-        currency(row.tds),
-        currency(row.scrap),
-        currency(row.gstOnScrap),
-        currency(row.tcs),
-        currency(row.md),
-        currency(row.mq),
-        currency(row.gstTds),
-        currency(row.totalDeduction),
-        currency(row.amountPayable),
+        row.billNo, // BILL (invoice number)
+        date(row.billDate), // BILL NO. (date)
+        currency(row.amountOfBill), // AMOUNT OF BILL
+        currency(row.tds), // I.TAX (TDS@1%)
+        currency(row.scrap), // SC (SAP) - Scrap
+        currency(row.gstOnScrap), // GST ON SCRAP
+        currency(row.tcs), // IN TAX (TCS 1%)
+        currency(row.tcs), // TCS (₹1%)
+        currency(row.md), // MD (NPW)
+        currency(row.gstTds), // GST (TDS @)
+        currency(row.totalDeduction), // TOTAL DED.
+        currency(row.amountPayable), // AMOUNT PAYABLE
       ]);
     }
 
@@ -1131,13 +1448,12 @@ class PdfService {
       '',
       '',
       currency(totals.amountOfBill),
-      currency(totals.csd),
       currency(totals.tds),
       currency(totals.scrap),
       currency(totals.gstOnScrap),
       currency(totals.tcs),
+      currency(totals.tcs),
       currency(totals.md),
-      currency(totals.mq),
       currency(totals.gstTds),
       currency(totals.totalDeduction),
       currency(totals.amountPayable),
@@ -1146,47 +1462,43 @@ class PdfService {
     return pw.TableHelper.fromTextArray(
       headers: headers,
       data: dataRows,
-      border: pw.TableBorder.all(color: PdfColors.grey500, width: 0.5),
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
       headerStyle: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.white),
+      headerAlignment: pw.Alignment.center,
       cellStyle: const pw.TextStyle(fontSize: 9),
       cellHeight: 30,
       cellAlignments: {
-        0: pw.Alignment.center,
-        1: pw.Alignment.centerLeft,
-        2: pw.Alignment.center,
-        3: pw.Alignment.centerRight,
-        4: pw.Alignment.centerRight,
-        5: pw.Alignment.centerRight,
-        6: pw.Alignment.centerRight,
-        7: pw.Alignment.centerRight,
-        8: pw.Alignment.centerRight,
-        9: pw.Alignment.centerRight,
-        10: pw.Alignment.centerRight,
-        11: pw.Alignment.centerRight,
-        12: pw.Alignment.centerRight,
-        13: pw.Alignment.centerRight,
+        0: pw.Alignment.center, // S.NO
+        1: pw.Alignment.center, // BILL
+        2: pw.Alignment.center, // BILL NO.
+        3: pw.Alignment.centerRight, // AMOUNT OF BILL
+        4: pw.Alignment.centerRight, // I.TAX
+        5: pw.Alignment.centerRight, // SC(SAP)
+        6: pw.Alignment.centerRight, // GST ON SCRAP
+        7: pw.Alignment.centerRight, // IN TAX
+        8: pw.Alignment.centerRight, // TCS
+        9: pw.Alignment.centerRight, // MD
+        10: pw.Alignment.centerRight, // GST
+        11: pw.Alignment.centerRight, // TOTAL DED.
+        12: pw.Alignment.centerRight, // AMOUNT PAYABLE
       },
       columnWidths: {
-        0: const pw.FixedColumnWidth(35),
-        1: const pw.FixedColumnWidth(70),
-        2: const pw.FixedColumnWidth(55),
-        3: const pw.FixedColumnWidth(85),
-        4: const pw.FixedColumnWidth(55),
-        5: const pw.FixedColumnWidth(75),
-        6: const pw.FixedColumnWidth(55),
-        7: const pw.FixedColumnWidth(75),
-        8: const pw.FixedColumnWidth(75),
-        9: const pw.FixedColumnWidth(60),
-        10: const pw.FixedColumnWidth(60),
-        11: const pw.FixedColumnWidth(75),
-        12: const pw.FixedColumnWidth(75),
-        13: const pw.FixedColumnWidth(85),
+        0: const pw.FixedColumnWidth(30), // S.NO
+        1: const pw.FixedColumnWidth(60), // BILL
+        2: const pw.FixedColumnWidth(60), // BILL NO.
+        3: const pw.FixedColumnWidth(70), // AMOUNT OF BILL
+        4: const pw.FixedColumnWidth(50), // I.TAX
+        5: const pw.FixedColumnWidth(45), // SC(SAP)
+        6: const pw.FixedColumnWidth(55), // GST ON SCRAP
+        7: const pw.FixedColumnWidth(50), // IN TAX
+        8: const pw.FixedColumnWidth(50), // TCS
+        9: const pw.FixedColumnWidth(50), // MD
+        10: const pw.FixedColumnWidth(55), // GST
+        11: const pw.FixedColumnWidth(70), // TOTAL DED.
+        12: const pw.FixedColumnWidth(70), // AMOUNT PAYABLE
       },
-      headerCount: 0,
-      rowDecoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.grey500, width: 0.5),
-      ),
+      rowDecoration: const pw.BoxDecoration(color: PdfColors.white),
     );
   }
 
@@ -1227,7 +1539,10 @@ class PdfService {
               ? (bill.emptyOilIssued - bill.emptyOilReturned).toDouble()
               : 0.0;
       final gstTds = bill.gstTdsAmount;
-      final totalDed = csd + tds + scrap + gstOnScrap + tcs + md + mq + gstTds;
+      // CSD and MD are RECEIVABLES (not deductions) - they will be paid back
+      // So they should NOT be subtracted from the Amount Payable
+      final totalDed = tds + scrap + gstOnScrap + tcs + gstTds;
+      // Amount Payable = Invoice Amount - Actual Deductions (excluding receivables)
       final amountPayable = amountOfBill - totalDed;
 
       return _BillTableRow(

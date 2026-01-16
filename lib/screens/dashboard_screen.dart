@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:fluent_ui/fluent_ui.dart';
+import 'package:flutter/material.dart'
+    show CircularProgressIndicator, AlwaysStoppedAnimation;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../core/premium_theme.dart';
 import '../models/bill.dart';
 import '../models/tn_bill_stats.dart';
 import '../screens/comprehensive_bill_form.dart';
@@ -412,17 +415,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 
   Widget _buildTNListSection() {
     return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 25,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: PremiumTheme.sectionDecoration(),
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -776,17 +769,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final highlighted = dueBills.take(5).toList();
 
     return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 25,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
+      decoration: PremiumTheme.sectionDecoration(),
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -957,72 +940,122 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             .toSet()
             .length;
 
+    final totalBills = _stats?.totalBills ?? 0;
+    final paidBills = _stats?.paidBills ?? 0;
+    final partialBills = _stats?.partiallyPaidBills ?? 0;
+    final dueSoonBills = _stats?.dueSoonBills ?? 0;
+    final overdueBills = _stats?.overdueBills ?? 0;
+
+    // Calculate progress percentage for paid bills
+    final paidPercentage =
+        totalBills > 0 ? (paidBills / totalBills * 100) : 0.0;
+
     return Column(
       children: [
+        // First row - Main stat cards with gradients
         Row(
           children: [
+            // Total Bills Card - Blue gradient
             Expanded(
-              child: _buildStatCard(
-                'Total Bills',
-                _stats?.totalBills.toString() ?? '0',
-                FluentIcons.bill,
-                Colors.blue,
+              child: _buildGradientStatCard(
+                title: 'Total Bills',
+                value: totalBills.toString(),
                 subtitle: _currencyFormat.format(_stats?.totalAmount ?? 0),
+                icon: FluentIcons.bill,
+                gradientColors: PremiumTheme.gradientBlue,
+                iconBgColor: PremiumTheme.gradientBlue[0].withValues(
+                  alpha: 0.2,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
+
+            // Due Soon Card - Pink gradient
             Expanded(
-              child: _buildStatCard(
-                'Due Soon',
-                _stats?.dueSoonBills.toString() ?? '0',
-                FluentIcons.warning,
-                Colors.orange,
+              child: _buildGradientStatCard(
+                title: 'Due Soon',
+                value: dueSoonBills.toString(),
+                subtitle: 'Bills due within 7 days',
+                icon: FluentIcons.clock,
+                gradientColors: PremiumTheme.gradientPink,
+                iconBgColor: PremiumTheme.gradientPink[0].withValues(
+                  alpha: 0.2,
+                ),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
+
+            // Overdue Card - Red gradient
             Expanded(
-              child: _buildStatCard(
-                'Overdue',
-                _stats?.overdueBills.toString() ?? '0',
-                FluentIcons.error,
-                Colors.red,
+              child: _buildGradientStatCard(
+                title: 'Overdue',
+                value: overdueBills.toString(),
+                subtitle: 'Requires immediate attention',
+                icon: FluentIcons.warning,
+                gradientColors: PremiumTheme.gradientRed,
+                iconBgColor: PremiumTheme.gradientRed[0].withValues(alpha: 0.2),
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
+
+            // Paid Card - Green gradient with progress ring
             Expanded(
-              child: _buildStatCard(
-                'Paid',
-                _stats?.paidBills.toString() ?? '0',
-                FluentIcons.completed,
-                Colors.green,
+              child: _buildProgressStatCard(
+                title: 'Paid',
+                value: paidBills.toString(),
                 subtitle: _currencyFormat.format(_stats?.paidAmount ?? 0),
+                percentage: paidPercentage,
+                gradientColors: PremiumTheme.gradientGreen,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 16),
+
+        // Second row - Secondary stat cards
         Row(
           children: [
+            // Partially Paid Card
             Expanded(
-              child: _buildStatCard(
-                'Partially Paid',
-                _stats?.partiallyPaidBills.toString() ?? '0',
-                FluentIcons.progress_ring_dots,
-                const Color(0xFFFF8F00),
+              child: _buildModernStatCard(
+                title: 'Partially Paid',
+                value: partialBills.toString(),
                 subtitle: 'Bills with partial payments',
+                icon: FluentIcons.half_circle,
+                accentColor: PremiumTheme.warningAmber,
+                bgColor: PremiumTheme.warningLight,
               ),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
+
+            // Client Firms Card
             Expanded(
-              child: _buildStatCard(
-                'Client Firms',
-                uniqueClientFirms.toString(),
-                FluentIcons.company_directory,
-                Colors.purple,
+              child: _buildModernStatCard(
+                title: 'Client Firms',
+                value: uniqueClientFirms.toString(),
                 subtitle: 'Active firms with bills',
+                icon: FluentIcons.company_directory,
+                accentColor: PremiumTheme.gradientPurple[0],
+                bgColor: const Color(0xFFF5F3FF),
               ),
             ),
-            const Expanded(child: SizedBox()),
+            const SizedBox(width: 16),
+
+            // Pending Amount Card
+            Expanded(
+              child: _buildModernStatCard(
+                title: 'Pending Amount',
+                value: _currencyFormat.format(_stats?.pendingAmount ?? 0),
+                subtitle:
+                    '${(_stats?.totalBills ?? 0) - (paidBills + partialBills)} bills pending',
+                icon: FluentIcons.money,
+                accentColor: PremiumTheme.infoBlue,
+                bgColor: PremiumTheme.infoLight,
+              ),
+            ),
+            const SizedBox(width: 16),
+
+            // Empty spacer for balance
             const Expanded(child: SizedBox()),
           ],
         ),
@@ -1030,47 +1063,291 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
-  Widget _buildStatCard(
-    String title,
-    String value,
-    IconData icon,
-    Color color, {
-    String? subtitle,
+  /// Modern gradient stat card with icon
+  Widget _buildGradientStatCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required List<Color> gradientColors,
+    required Color iconBgColor,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            gradientColors[0].withValues(alpha: 0.12),
+            gradientColors[1].withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: gradientColors[0].withValues(alpha: 0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: gradientColors[0].withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: gradientColors,
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: gradientColors[0].withValues(alpha: 0.4),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Icon(icon, size: 22, color: Colors.white),
+              ),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: gradientColors[0],
+                  letterSpacing: 0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 36,
+              fontWeight: FontWeight.w800,
+              color: gradientColors[0],
+              letterSpacing: -1,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 12,
+              color: gradientColors[0].withValues(alpha: 0.7),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Progress ring stat card (for Paid bills)
+  Widget _buildProgressStatCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required double percentage,
+    required List<Color> gradientColors,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            gradientColors[0].withValues(alpha: 0.12),
+            gradientColors[1].withValues(alpha: 0.08),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: gradientColors[0].withValues(alpha: 0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: gradientColors[0].withValues(alpha: 0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: gradientColors),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        FluentIcons.completed_solid,
+                        size: 12,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w800,
+                    color: gradientColors[0],
+                    letterSpacing: -1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: gradientColors[0].withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Circular Progress Ring
+          SizedBox(
+            width: 70,
+            height: 70,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 70,
+                  height: 70,
+                  child: CircularProgressIndicator(
+                    value: percentage / 100,
+                    strokeWidth: 8,
+                    backgroundColor: gradientColors[0].withValues(alpha: 0.2),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      gradientColors[0],
+                    ),
+                  ),
+                ),
+                Text(
+                  '${percentage.toStringAsFixed(0)}%',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: gradientColors[0],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Modern flat stat card for secondary stats
+  Widget _buildModernStatCard({
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color accentColor,
+    required Color bgColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: accentColor.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 20, color: color),
-              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, size: 18, color: accentColor),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   title,
-                  style: FluentTheme.of(context).typography.caption,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: accentColor,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text(
             value,
-            style: FluentTheme.of(context).typography.title?.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: accentColor,
+              letterSpacing: -0.5,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 11,
+              color: accentColor.withValues(alpha: 0.6),
             ),
           ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(subtitle, style: FluentTheme.of(context).typography.caption),
-          ],
         ],
       ),
     );

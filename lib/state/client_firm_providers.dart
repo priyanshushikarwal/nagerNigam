@@ -18,3 +18,6 @@ final clientFirmsProvider = FutureProvider<List<ClientFirm>>((ref) async {
 
 // Selected client firm ID provider (for forms)
 final selectedClientFirmIdProvider = StateProvider<int?>((ref) => null);
+
+// Bills filter client firm ID provider (persists filter selection on Bills Management screen)
+final billsFilterClientFirmIdProvider = StateProvider<int?>((ref) => null);

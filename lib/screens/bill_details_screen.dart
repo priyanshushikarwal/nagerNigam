@@ -13,6 +13,8 @@ import '../state/tender_providers.dart';
 import '../services/sync_service.dart';
 import 'comprehensive_payment_form.dart';
 import 'comprehensive_bill_form.dart';
+import 'csd_payment_dialog.dart';
+import 'mdld_payment_dialog.dart';
 
 class BillDetailsScreen extends ConsumerStatefulWidget {
   final int billId;
@@ -88,7 +90,11 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
     }
   }
 
-  Future<void> _addPayment(Bill bill) async {
+  Future<void> _addPayment(
+    Bill bill, {
+    double? initialAmount,
+    String? initialRemarks,
+  }) async {
     final billAmount =
         bill.billPassAmount > 0
             ? bill.billPassAmount
@@ -101,6 +107,8 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
             billId: bill.id!,
             tnNumber: bill.tnNumber,
             billAmount: billAmount,
+            initialAmount: initialAmount,
+            initialRemarks: initialRemarks,
           ),
     );
 
@@ -336,12 +344,10 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
     );
   }
 
-  /// Builds an Excel-style table with bill details, deductions, and dynamic payment history
+  /// Builds an Excel-style table with bill details and deductions
+  /// Two-row layout: Row 1 (Invoice Info), Row 2 (Deductions & Extras)
+  /// All white background with clean borders
   Widget _buildExcelStyleTable(Bill bill, List<Payment> payments) {
-    // Sort payments by date
-    final sortedPayments = List<Payment>.from(payments)
-      ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
-
     // Net Payment calculation: Invoice Amount - Deductions (excluding CSD and MD as they are receivables)
     final netPayment =
         bill.invoiceAmount -
@@ -351,152 +357,8 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
         bill.tcsAmount -
         bill.gstTdsAmount;
 
-    // CSD dates - use actual values from bill, with fallbacks
-    final csdDueDate =
-        bill.csdDueDate ?? bill.billDate.add(const Duration(days: 45));
-    final csdReleasedDate =
-        bill.csdReleasedDate ?? bill.billDate.add(const Duration(days: 365));
-
-    // Calculate running balance for payments
-    List<double> remainingAmounts = [];
-    double runningBalance = netPayment;
-    for (var payment in sortedPayments) {
-      runningBalance -= payment.amountPaid;
-      remainingAmounts.add(runningBalance);
-    }
-
-    // Build fixed headers - removed "Difference", "RR Date", "Due Date" as per client request
-    final fixedHeaders = [
-      'Sr No',
-      'Bill No',
-      'Date',
-      'Lot No',
-      'Work Order No',
-      'WO Date',
-      'Invoice Amount',
-      'Bill Pass Amount',
-      'MD', // Shown but NOT deducted from net payment (receivable)
-      'CSD', // Shown but NOT deducted from net payment (receivable)
-      'CSD Due Date',
-      'CSD Released Date',
-      'TDS',
-      'Scrap',
-      'Scrap GST',
-      'TCS',
-      'MD (NPW)',
-      'GST TDS',
-      'Net Payment',
-    ];
-
-    // Build dynamic payment headers - 3 columns per payment
-    final paymentHeaders = <String>[];
-    for (int i = 0; i < sortedPayments.length; i++) {
-      final suffix = _getOrdinalSuffix(i + 1);
-      paymentHeaders.add('${i + 1}$suffix Payment');
-      paymentHeaders.add('Date');
-      paymentHeaders.add('Remaining');
-    }
-
-    // All headers combined
-    final allHeaders = [...fixedHeaders, ...paymentHeaders];
-
-    // Build fixed data cells - removed "Difference", "RR Date", "Due Date" values
-    final fixedDataValues = [
-      '1', // Sr No
-      bill.billNo ?? '-',
-      _dateFormat.format(bill.billDate),
-      bill.tnNumber,
-      bill.workOrderNo ?? '-',
-      bill.workOrderDate != null
-          ? _dateFormat.format(bill.workOrderDate!)
-          : '-',
-      _currencyFormat.format(bill.invoiceAmount),
-      _currencyFormat.format(bill.billPassAmount),
-      _currencyFormat.format(bill.mdLdAmount), // MD - shown as receivable
-      _currencyFormat.format(bill.csdAmount), // CSD - shown as receivable
-      bill.csdDueDate != null ? _dateFormat.format(csdDueDate) : '-',
-      bill.csdReleasedDate != null ? _dateFormat.format(csdReleasedDate) : '-',
-      _currencyFormat.format(bill.tdsAmount),
-      _currencyFormat.format(bill.scrapAmount),
-      _currencyFormat.format(bill.scrapGstAmount),
-      _currencyFormat.format(bill.tcsAmount),
-      '-', // MD (NPW) - placeholder
-      _currencyFormat.format(bill.gstTdsAmount),
-      _currencyFormat.format(netPayment),
-    ];
-
-    // Build payment data cells - 3 values per payment (Amount, Date, Remaining)
-    final paymentDataValues = <String>[];
-    for (int i = 0; i < sortedPayments.length; i++) {
-      final payment = sortedPayments[i];
-      paymentDataValues.add(_currencyFormat.format(payment.amountPaid));
-      paymentDataValues.add(_dateFormat.format(payment.paymentDate));
-      paymentDataValues.add(_currencyFormat.format(remainingAmounts[i]));
-    }
-
-    // All data values combined
-    final allDataValues = [...fixedDataValues, ...paymentDataValues];
-
-    // Calculate total paid
-    final totalPaid = sortedPayments.fold(0.0, (sum, p) => sum + p.amountPaid);
-
-    // Build total row values - matching your Excel screenshot (show all financial values)
-    final totalRowValues = <String>[];
-    for (int i = 0; i < fixedHeaders.length; i++) {
-      final header = fixedHeaders[i];
-      switch (header) {
-        case 'Sr No':
-          totalRowValues.add('TOTAL');
-          break;
-        case 'Invoice Amount':
-          totalRowValues.add(_currencyFormat.format(bill.invoiceAmount));
-          break;
-        case 'Bill Pass Amount':
-          totalRowValues.add(_currencyFormat.format(bill.billPassAmount));
-          break;
-        case 'MD':
-          totalRowValues.add(_currencyFormat.format(bill.mdLdAmount));
-          break;
-        case 'TDS':
-          totalRowValues.add(_currencyFormat.format(bill.tdsAmount));
-          break;
-        case 'Scrap':
-          totalRowValues.add(_currencyFormat.format(bill.scrapAmount));
-          break;
-        case 'Scrap GST':
-          totalRowValues.add(_currencyFormat.format(bill.scrapGstAmount));
-          break;
-        case 'TCS':
-          totalRowValues.add(_currencyFormat.format(bill.tcsAmount));
-          break;
-        case 'GST TDS':
-          totalRowValues.add(_currencyFormat.format(bill.gstTdsAmount));
-          break;
-        case 'Net Payment':
-          totalRowValues.add(_currencyFormat.format(netPayment));
-          break;
-        default:
-          totalRowValues.add('');
-      }
-    }
-    // Add payment totals - 3 cells per payment (Total Paid, empty date, Final Remaining)
-    for (int i = 0; i < sortedPayments.length; i++) {
-      if (i == sortedPayments.length - 1) {
-        // Last payment - show totals
-        totalRowValues.add(_currencyFormat.format(totalPaid));
-        totalRowValues.add('');
-        totalRowValues.add(
-          _currencyFormat.format(
-            remainingAmounts.isNotEmpty ? remainingAmounts.last : netPayment,
-          ),
-        );
-      } else {
-        // Other payments - empty cells
-        totalRowValues.add('');
-        totalRowValues.add('');
-        totalRowValues.add('');
-      }
-    }
+    // Calculate difference between Invoice and Bill Pass
+    final difference = bill.invoiceAmount - bill.billPassAmount;
 
     return Expander(
       header: const Text(
@@ -515,52 +377,233 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
           thumbVisibility: true,
           trackVisibility: true,
           interactive: true,
-          child: SingleChildScrollView(
-            controller: _horizontalScrollController,
-            scrollDirection: Axis.horizontal,
-            child: Table(
-              defaultColumnWidth: const FixedColumnWidth(110),
-              border: TableBorder.all(
-                color: PremiumTheme.borderColor,
-                width: 1,
-              ),
-              children: [
-                // Header Row
-                TableRow(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF5F5F5), // Light gray like Excel
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                controller: _horizontalScrollController,
+                scrollDirection: Axis.horizontal,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // ===== TABLE 1: Invoice Information (Row 1 & 2) =====
+                      Table(
+                        defaultColumnWidth: const FixedColumnWidth(100),
+                        border: TableBorder.all(color: Colors.black, width: 1),
+                        children: [
+                          // ROW 1: Header Row - Invoice Information
+                          TableRow(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                            ),
+                            children: [
+                              _buildHeaderCell('Invoice No', Colors.black),
+                              _buildHeaderCell('Invoice Date', Colors.black),
+                              _buildHeaderCell('RR Date', Colors.black),
+                              _buildHeaderCell('Lot No', Colors.black),
+                              _buildHeaderCell('Store', Colors.black),
+                              _buildHeaderCell('Work Order No', Colors.black),
+                              _buildHeaderCell('WO Date', Colors.black),
+                              _buildHeaderCell('Invoice Amount', Colors.black),
+                              _buildHeaderCell(
+                                'Bill Pass Amount',
+                                Colors.black,
+                              ),
+                              _buildHeaderCell('Difference', Colors.black),
+                              _buildHeaderCell('CSD Amount', Colors.black),
+                              _buildHeaderCell('CSD Due Date', Colors.black),
+                              _buildHeaderCell(
+                                'CSD Release Date',
+                                Colors.black,
+                              ),
+                            ],
+                          ),
+                          // ROW 2: Data Row - Invoice Information
+                          TableRow(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                            ),
+                            children: [
+                              _buildDataCell(bill.billNo ?? '-'),
+                              _buildDataCell(_dateFormat.format(bill.billDate)),
+                              _buildDataCell(
+                                bill.dueReleaseDate != null
+                                    ? _dateFormat.format(bill.dueReleaseDate!)
+                                    : '-',
+                              ),
+                              _buildDataCell(bill.tnNumber),
+                              _buildDataCell(bill.consignmentName ?? '-'),
+                              _buildDataCell(bill.workOrderNo ?? '-'),
+                              _buildDataCell(
+                                bill.workOrderDate != null
+                                    ? _dateFormat.format(bill.workOrderDate!)
+                                    : '-',
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.invoiceAmount),
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.billPassAmount),
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(difference),
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.csdAmount),
+                                backgroundColor:
+                                    bill.csdStatus == 'Released'
+                                        ? const Color(0xFFD4EDDA) // Light green
+                                        : const Color(0xFFF8D7DA), // Light red
+                              ),
+                              _buildDataCell(
+                                bill.csdDueDate != null
+                                    ? _dateFormat.format(bill.csdDueDate!)
+                                    : '-',
+                              ),
+                              _buildDataCell(
+                                bill.csdReleasedDate != null
+                                    ? _dateFormat.format(bill.csdReleasedDate!)
+                                    : '-',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+
+                      // GAP between Invoice section and Deductions section
+                      const SizedBox(height: 8),
+
+                      // ===== TABLE 2: Deductions & Additional Info (Row 3 & 4) =====
+                      Table(
+                        defaultColumnWidth: const FixedColumnWidth(100),
+                        border: TableBorder.all(color: Colors.black, width: 1),
+                        children: [
+                          // ROW 3: Header Row - Deductions & Additional Info
+                          TableRow(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                            ),
+                            children: [
+                              _buildHeaderCell('TDS Amount', Colors.black),
+                              _buildHeaderCell('Scrap Amount', Colors.black),
+                              _buildHeaderCell('Scrap GST', Colors.black),
+                              _buildHeaderCell('TCS Amount', Colors.black),
+                              _buildHeaderCell('GST TDS', Colors.black),
+                              _buildHeaderCell('MD Amount', Colors.black),
+                              _buildHeaderCell('Remark', Colors.black),
+                              _buildHeaderCell('D. Meter Box', Colors.black),
+                              _buildHeaderCell('Remark', Colors.black),
+                              _buildHeaderCell('Empty Oil Drum', Colors.black),
+                              _buildHeaderCell('Remark', Colors.black),
+                              _buildHeaderCell('MD (NPV)', Colors.black),
+                              _buildHeaderCell(
+                                'Net Payable Amount',
+                                Colors.black,
+                              ),
+                            ],
+                          ),
+                          // ROW 4: Data Row - Deductions & Additional Info
+                          TableRow(
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                            ),
+                            children: [
+                              _buildDataCell(
+                                _currencyFormat.format(bill.tdsAmount),
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.scrapAmount),
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.scrapGstAmount),
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.tcsAmount),
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.gstTdsAmount),
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.mdLdAmount),
+                                backgroundColor:
+                                    bill.mdLdStatus == 'Released'
+                                        ? const Color(0xFFD4EDDA) // Light green
+                                        : const Color(0xFFF8D7DA), // Light red
+                              ),
+                              _buildDataCell(bill.remarks ?? '-', fontSize: 10),
+                              _buildDataCell('-'),
+                              _buildDataCell('-'),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.emptyOilIssued),
+                              ),
+                              _buildDataCell(
+                                '${bill.emptyOilReturned.toInt()} Drum',
+                                fontSize: 10,
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.mdLdAmount),
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(netPayment),
+                                isBold: true,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  children:
-                      allHeaders
-                          .map((header) => _buildTableHeaderCell(header))
-                          .toList(),
                 ),
-                // Data Row
-                TableRow(
-                  decoration: const BoxDecoration(
-                    color: PremiumTheme.pureWhite,
-                  ),
-                  children: List.generate(allDataValues.length, (index) {
-                    return _buildTableCell(allDataValues[index]);
-                  }),
-                ),
-                // Total Row
-                TableRow(
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF5F5F5), // Light gray like Excel
-                  ),
-                  children: List.generate(totalRowValues.length, (index) {
-                    final value = totalRowValues[index];
-                    final isBold = value.isNotEmpty;
-                    return _buildTableCell(value, isBold: isBold);
-                  }),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ),
     );
+  }
+
+  /// Builds a header cell with custom text color
+  Widget _buildHeaderCell(String text, Color textColor) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 11,
+          color: textColor,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  /// Builds a data cell with optional styling
+  Widget _buildDataCell(
+    String text, {
+    bool isBold = false,
+    Color? textColor,
+    double fontSize = 11,
+    Color? backgroundColor,
+  }) {
+    Widget content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+          fontSize: fontSize,
+          color: textColor ?? PremiumTheme.textPrimary,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+
+    if (backgroundColor != null) {
+      return Container(color: backgroundColor, child: content);
+    }
+    return content;
   }
 
   /// Builds a header cell for the Excel-style table
@@ -812,16 +855,161 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
             const SizedBox(height: PremiumTheme.spacingM),
 
             // CSD Row with all details
-            if (csdAmount > 0) _buildCsdRow(bill),
+            if (csdAmount > 0) ...[
+              _buildCsdRow(bill),
+              const SizedBox(height: 8),
+              // Add Payment button for CSD - uses specialized dialog
+              // Only show if CSD is not yet released
+              if (bill.csdStatus != 'Released')
+                Row(
+                  children: [
+                    Button(
+                      onPressed: () async {
+                        final result = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => CsdPaymentDialog(bill: bill),
+                        );
+                        if (result == true) {
+                          // Refresh the UI
+                          ref.invalidate(billByIdProvider(widget.billId));
+                          ref.invalidate(
+                            billWithPaymentsProvider(widget.billId),
+                          );
+                          ref.invalidate(paymentsByBillProvider(widget.billId));
+                          _showInfoBar(
+                            'CSD Payment recorded successfully',
+                            InfoBarSeverity.success,
+                          );
+                        }
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(FluentIcons.money, size: 14),
+                          const SizedBox(width: 6),
+                          const Text('Add CSD Payment'),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.green.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            FluentIcons.completed_solid,
+                            size: 14,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'CSD Already Released',
+                            style: TextStyle(
+                              color: Colors.green.dark,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: PremiumTheme.spacingM),
+            ],
 
-            if (mdLdAmount > 0)
-              _buildReceivableRow(
-                'MD/LD Amount',
-                mdLdAmount,
-                'Minimum Demand / Liquidated Damages',
-                'To be recovered',
-                Colors.purple,
-              ),
+            if (mdLdAmount > 0) ...[
+              _buildMdLdRow(bill),
+              const SizedBox(height: 8),
+              // Add Payment button for MD/LD - uses specialized dialog
+              // Only show if MD/LD is not yet released
+              if (bill.mdLdStatus != 'Released')
+                Row(
+                  children: [
+                    Button(
+                      onPressed: () async {
+                        final result = await showDialog<bool>(
+                          context: context,
+                          builder: (context) => MdLdPaymentDialog(bill: bill),
+                        );
+                        if (result == true) {
+                          // Refresh the UI
+                          ref.invalidate(billByIdProvider(widget.billId));
+                          ref.invalidate(
+                            billWithPaymentsProvider(widget.billId),
+                          );
+                          ref.invalidate(paymentsByBillProvider(widget.billId));
+                          _showInfoBar(
+                            'MD/LD Payment recorded successfully',
+                            InfoBarSeverity.success,
+                          );
+                        }
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(FluentIcons.money, size: 14),
+                          const SizedBox(width: 6),
+                          const Text('Add MD/LD Payment'),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: Colors.green.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            FluentIcons.completed_solid,
+                            size: 14,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'MD/LD Already Released',
+                            style: TextStyle(
+                              color: Colors.green.dark,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: PremiumTheme.spacingM),
+            ],
 
             const Divider(),
 
@@ -983,51 +1171,41 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                         ),
               ),
 
-              // CSD Status (Toggle)
+              // CSD Status (Read-only - changes only via CSD Payment)
               Expanded(
                 flex: 2,
-                child: GestureDetector(
-                  onTap: () async {
-                    final newStatus =
-                        bill.csdStatus == 'Released' ? 'Pending' : 'Released';
-                    final billsDao = ref.read(billsDaoProvider);
-                    await billsDao.updateCsdStatus(bill.id!, newStatus);
-                    // Trigger refresh
-                    ref.invalidate(billWithPaymentsProvider(bill.id!));
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: csdStatusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: csdStatusColor.withValues(alpha: 0.5),
                     ),
-                    decoration: BoxDecoration(
-                      color: csdStatusColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                        color: csdStatusColor.withValues(alpha: 0.5),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        bill.csdStatus == 'Released'
+                            ? FluentIcons.check_mark
+                            : FluentIcons.clock,
+                        size: 14,
+                        color: csdStatusColor,
                       ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          bill.csdStatus == 'Released'
-                              ? FluentIcons.check_mark
-                              : FluentIcons.clock,
-                          size: 14,
+                      const SizedBox(width: 6),
+                      Text(
+                        bill.csdStatus == 'Released' ? 'Released' : 'Pending',
+                        style: TextStyle(
                           color: csdStatusColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
                         ),
-                        const SizedBox(width: 6),
-                        Text(
-                          bill.csdStatus == 'Released' ? 'Released' : 'Pending',
-                          style: TextStyle(
-                            color: csdStatusColor,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1068,6 +1246,190 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
               ),
 
               // Action button to edit dates
+              Expanded(
+                flex: 1,
+                child: IconButton(
+                  icon: Icon(
+                    FluentIcons.edit,
+                    size: 14,
+                    color: Colors.grey[80],
+                  ),
+                  onPressed: () => _editBill(bill),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMdLdRow(Bill bill) {
+    final mdLdStatusColor =
+        bill.mdLdStatus == 'Released' ? Colors.green : Colors.purple;
+
+    return Container(
+      padding: const EdgeInsets.all(PremiumTheme.spacingM),
+      margin: const EdgeInsets.only(bottom: PremiumTheme.spacingM),
+      decoration: BoxDecoration(
+        color: PremiumTheme.cardBackground,
+        borderRadius: BorderRadius.circular(PremiumTheme.borderRadiusSmall),
+        border: Border.all(color: Colors.grey[30]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row with columns
+          Row(
+            children: [
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  '',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  'MD/LD Status',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  'MD/LD Release Date',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(flex: 1, child: SizedBox()),
+            ],
+          ),
+          const SizedBox(height: PremiumTheme.spacingS),
+          // Data row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // MD/LD Amount
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'MD/LD Amount',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: PremiumTheme.textPrimary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _currencyFormat.format(bill.mdLdAmount),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.purple.dark,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const Text(
+                      'Minimum Demand / Liquidated Damages',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: PremiumTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // MD/LD Status (Read-only - changes only via MD/LD Payment)
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: mdLdStatusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: mdLdStatusColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        bill.mdLdStatus == 'Released'
+                            ? FluentIcons.check_mark
+                            : FluentIcons.clock,
+                        size: 14,
+                        color: mdLdStatusColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        bill.mdLdStatus == 'Released' ? 'Released' : 'Pending',
+                        style: TextStyle(
+                          color: mdLdStatusColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 16),
+              // MD/LD Release Date
+              Expanded(
+                flex: 2,
+                child:
+                    bill.mdLdReleasedDate != null
+                        ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Released: ${_dateFormat.format(bill.mdLdReleasedDate!)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.dark,
+                            ),
+                          ),
+                        )
+                        : const Text(
+                          '-',
+                          style: TextStyle(
+                            color: PremiumTheme.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+              ),
+
+              // Action button to edit bill
               Expanded(
                 flex: 1,
                 child: IconButton(

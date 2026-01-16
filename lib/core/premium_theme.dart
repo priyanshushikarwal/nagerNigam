@@ -1,75 +1,119 @@
 import 'package:fluent_ui/fluent_ui.dart';
 
 /// Premium Minimal Theme
-/// Inspired by: Apple iOS, Clean SAAS UI, Modern Fintech
-/// Colors: White + Black (High Contrast Minimal)
-/// Accent: Neutral Grays
-/// Vibe: Elegant, Premium, Calm, Minimal, Luxury, Balanced
+/// Inspired by: Modern SaaS Dashboards, Clean UI, Soft Pastels
+/// Colors: Soft Gradients + Muted Semantic Colors
+/// Vibe: Modern, Airy, Professional, SaaS-style
 class PremiumTheme {
-  // Primary Colors - High Contrast Minimal
-  static const Color primaryBlack = Color(0xFF000000);
+  // ===== CORE COLORS =====
+  static const Color primaryBlack = Color(0xFF1F2937); // Soft black (not pure)
   static const Color pureWhite = Color(0xFFFFFFFF);
-  static const Color primaryAccent = Color(0xFF2563EB);
-  static const Color accentHover = Color(0xFF1D4ED8);
-  static const Color accentPressed = Color(0xFF1E3A8A);
-  static const Color accentDisabledLight = Color(0xFFCBD5F5);
-  static const Color accentDisabledDark = Color(0xFF1B2B55);
+  static const Color primaryAccent = Color(0xFF6366F1); // Indigo/Purple
+  static const Color accentHover = Color(0xFF4F46E5);
+  static const Color accentPressed = Color(0xFF4338CA);
+  static const Color accentDisabledLight = Color(0xFFE0E7FF);
+  static const Color accentDisabledDark = Color(0xFF312E81);
+
+  // ===== BACKGROUND GRADIENTS (Pastel Theme) =====
+  static const Color gradientStart = Color(0xFFFFF1EB); // Soft peach
+  static const Color gradientEnd = Color(0xFFF8F0FC); // Soft lavender
+  static const Color gradientMid = Color(0xFFFDF4FF); // Light pink
 
   // Background & Surface Colors
-  static const Color backgroundColor = Color(0xFFFFFFFF); // Pure white
-  static const Color cardBackground = Color(0xFFF5F5F5); // Soft gray
-  static const Color surfaceLight = Color(0xFFFAFAFA);
+  static const Color backgroundColor = Color(0xFFFAFAFB); // Warm gray-white
+  static const Color cardBackground = Color(0xFFFFFFFF); // Pure white cards
+  static const Color surfaceLight = Color(0xFFF9FAFB);
+  static const Color sectionBackground = Color(
+    0xFFF3F4F6,
+  ); // Section containers
 
   // Dark Mode Core Colors
-  static const Color darkBackground = Color(0xFF0F1114);
-  static const Color darkCard = Color(0xFF181B20);
+  static const Color darkBackground = Color(0xFF111827);
+  static const Color darkCard = Color(0xFF1F2937);
 
-  // Text Colors
-  static const Color textPrimary = Color(0xFF000000); // Black
-  static const Color textSecondary = Color(0xFF898989); // Neutral gray
-  static const Color textTertiary = Color(0xFFBDBDBD); // Light gray
-  static const Color darkTextPrimary = Color(0xFFF3F4F6);
-  static const Color darkTextSecondary = Color(0xFF9DA7B4);
+  // ===== TEXT COLORS (No Pure Black) =====
+  static const Color textPrimary = Color(0xFF1F2937); // Soft black
+  static const Color textSecondary = Color(0xFF6B7280); // Muted gray
+  static const Color textTertiary = Color(0xFF9CA3AF); // Light gray
+  static const Color textMuted = Color(0xFFD1D5DB); // Very light
+  static const Color darkTextPrimary = Color(0xFFF9FAFB);
+  static const Color darkTextSecondary = Color(0xFF9CA3AF);
 
-  // Accent & Border Colors
-  static const Color borderColor = Color(0xFFE8E8E8);
-  static const Color dividerColor = Color(0xFFF0F0F0);
-  static const Color iconGray = Color(0xFF898989);
+  // ===== ACCENT & BORDER COLORS =====
+  static const Color borderColor = Color(0xFFE5E7EB);
+  static const Color borderLight = Color(0xFFF3F4F6);
+  static const Color dividerColor = Color(0xFFF3F4F6);
+  static const Color iconGray = Color(0xFF9CA3AF);
 
-  // Semantic Colors (Minimal & Muted)
-  static const Color successGreen = Color(0xFF2E7D32); // Muted green
-  static const Color warningOrange = Color(0xFFE65100); // Muted orange
-  static const Color errorRed = Color(0xFFC62828); // Muted red
-  static const Color infoBlue = Color(0xFF1565C0); // Muted blue
+  // ===== SEMANTIC COLORS (Muted & Soft) =====
+  static const Color successGreen = Color(0xFF10B981); // Emerald
+  static const Color successLight = Color(0xFFD1FAE5);
+  static const Color warningAmber = Color(0xFFF59E0B); // Amber
+  static const Color warningLight = Color(0xFFFEF3C7);
+  static const Color errorRed = Color(0xFFEF4444); // Soft red
+  static const Color errorLight = Color(0xFFFEE2E2);
+  static const Color infoBlue = Color(0xFF3B82F6); // Blue
+  static const Color infoLight = Color(0xFFDBEAFE);
 
-  // Shadow Definition - Soft & Subtle
+  // ===== GRADIENT STAT CARD COLORS =====
+  static const List<Color> gradientBlue = [
+    Color(0xFF667EEA),
+    Color(0xFF764BA2),
+  ];
+  static const List<Color> gradientPink = [
+    Color(0xFFF093FB),
+    Color(0xFFF5576C),
+  ];
+  static const List<Color> gradientRed = [Color(0xFFFF6B6B), Color(0xFFEE5A5A)];
+  static const List<Color> gradientGreen = [
+    Color(0xFF11998E),
+    Color(0xFF38EF7D),
+  ];
+  static const List<Color> gradientOrange = [
+    Color(0xFFFFB347),
+    Color(0xFFFFCC33),
+  ];
+  static const List<Color> gradientPurple = [
+    Color(0xFF8B5CF6),
+    Color(0xFFA855F7),
+  ];
+
+  // ===== SHADOW DEFINITIONS - Ultra Soft =====
   static const shadow = BoxShadow(
-    color: Color(0x12000000), // 7% opacity
-    blurRadius: 30,
+    color: Color(0x08000000), // 3% opacity
+    blurRadius: 24,
     offset: Offset(0, 4),
     spreadRadius: 0,
   );
 
   static const cardShadow = BoxShadow(
-    color: Color(0x0A000000), // 4% opacity
-    blurRadius: 25,
+    color: Color(0x06000000), // 2.5% opacity
+    blurRadius: 20,
     offset: Offset(0, 2),
     spreadRadius: 0,
   );
 
   static const elevatedShadow = BoxShadow(
-    color: Color(0x14000000), // 8% opacity
-    blurRadius: 40,
-    offset: Offset(0, 6),
-    spreadRadius: -2,
+    color: Color(0x0A000000), // 4% opacity
+    blurRadius: 32,
+    offset: Offset(0, 8),
+    spreadRadius: -4,
   );
 
-  // Border Radius - 16px rounded
+  static const softGlow = BoxShadow(
+    color: Color(0x12667EEA), // Colored glow
+    blurRadius: 40,
+    offset: Offset(0, 12),
+    spreadRadius: -8,
+  );
+
+  // ===== BORDER RADIUS - Modern Rounded =====
   static const double borderRadius = 16.0;
   static const double borderRadiusSmall = 12.0;
   static const double borderRadiusLarge = 20.0;
+  static const double borderRadiusPill = 100.0; // For pill buttons/badges
 
-  // Spacing System - Airy & Balanced
+  // ===== SPACING SYSTEM =====
   static const double spacingXS = 4.0;
   static const double spacingS = 8.0;
   static const double spacingM = 16.0;
@@ -305,6 +349,91 @@ class PremiumTheme {
       color: accentColor.withValues(alpha: 0.05),
       borderRadius: BorderRadius.circular(borderRadiusSmall),
       border: Border.all(color: accentColor.withValues(alpha: 0.15), width: 1),
+    );
+  }
+
+  /// Gradient Card Decoration (for stat cards)
+  static BoxDecoration gradientCardDecoration(List<Color> gradientColors) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          gradientColors[0].withValues(alpha: 0.12),
+          gradientColors[1].withValues(alpha: 0.08),
+        ],
+      ),
+      borderRadius: BorderRadius.circular(borderRadiusLarge),
+      border: Border.all(
+        color: gradientColors[0].withValues(alpha: 0.2),
+        width: 1,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: gradientColors[0].withValues(alpha: 0.1),
+          blurRadius: 20,
+          offset: const Offset(0, 8),
+        ),
+      ],
+    );
+  }
+
+  /// Pill Badge Decoration (for status badges)
+  static BoxDecoration pillBadgeDecoration({
+    required Color backgroundColor,
+    Color? borderColor,
+  }) {
+    return BoxDecoration(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(borderRadiusPill),
+      border:
+          borderColor != null ? Border.all(color: borderColor, width: 1) : null,
+    );
+  }
+
+  /// Section Container Decoration (for dashboard sections)
+  static BoxDecoration sectionDecoration() {
+    return BoxDecoration(
+      color: sectionBackground,
+      borderRadius: BorderRadius.circular(borderRadiusLarge),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x04000000),
+          blurRadius: 20,
+          offset: Offset(0, 2),
+        ),
+      ],
+    );
+  }
+
+  /// Modern Icon Container Decoration
+  static BoxDecoration iconContainerDecoration(List<Color> gradientColors) {
+    return BoxDecoration(
+      gradient: LinearGradient(
+        colors: gradientColors,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(14),
+      boxShadow: [
+        BoxShadow(
+          color: gradientColors[0].withValues(alpha: 0.4),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
+        ),
+      ],
+    );
+  }
+
+  /// Soft Background Gradient for pages
+  static BoxDecoration pageGradientBackground() {
+    return const BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [gradientStart, gradientMid, gradientEnd],
+        stops: [0.0, 0.5, 1.0],
+      ),
     );
   }
 

@@ -13,6 +13,8 @@ class ComprehensivePaymentFormDialog extends ConsumerStatefulWidget {
   final String tnNumber;
   final double billAmount;
   final Payment? payment; // For editing existing payment
+  final double? initialAmount; // Pre-fill amount (for CSD/MD payments)
+  final String? initialRemarks; // Pre-fill remarks (for CSD/MD payments)
 
   const ComprehensivePaymentFormDialog({
     super.key,
@@ -20,6 +22,8 @@ class ComprehensivePaymentFormDialog extends ConsumerStatefulWidget {
     required this.tnNumber,
     required this.billAmount,
     this.payment,
+    this.initialAmount,
+    this.initialRemarks,
   });
 
   @override
@@ -168,13 +172,20 @@ class _ComprehensivePaymentFormDialogState
       _existingProofPath = p.proofPath;
       _proofSourcePath = null;
     } else {
-      // New payment mode
-      _amountPaidController = TextEditingController();
+      // New payment mode - optionally pre-fill from initialAmount/initialRemarks
+      _amountPaidController = TextEditingController(
+        text:
+            widget.initialAmount != null
+                ? widget.initialAmount!.toStringAsFixed(2)
+                : '',
+      );
       _transactionNoController = TextEditingController();
       _invoiceNoController = TextEditingController();
       _workOrderNoController = TextEditingController();
       _consignmentNameController = TextEditingController();
-      _remarksController = TextEditingController();
+      _remarksController = TextEditingController(
+        text: widget.initialRemarks ?? '',
+      );
       _existingProofPath = null;
       _proofSourcePath = null;
     }

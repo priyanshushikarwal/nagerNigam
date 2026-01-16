@@ -99,6 +99,10 @@ class Bills extends Table {
       real().named('scrap_gst_amount').withDefault(const Constant(0.0))();
   RealColumn get mdLdAmount =>
       real().named('md_ld_amount').withDefault(const Constant(0.0))();
+  TextColumn get mdLdStatus =>
+      text().named('md_ld_status').withDefault(const Constant('Pending'))();
+  DateTimeColumn get mdLdReleasedDate =>
+      dateTime().named('md_ld_released_date').nullable()();
   RealColumn get emptyOilIssued =>
       real().named('empty_oil_issued').withDefault(const Constant(0.0))();
   RealColumn get emptyOilReturned =>
@@ -156,7 +160,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -348,6 +352,29 @@ class AppDatabase extends _$AppDatabase {
         if (csdDueDateExists.data['count'] == 0) {
           await customStatement(
             "ALTER TABLE bills ADD COLUMN csd_due_date INTEGER",
+          );
+        }
+      }
+      if (from < 12) {
+        // Add md_ld_status column to bills table
+        final mdLdStatusExists =
+            await customSelect(
+              "SELECT COUNT(*) as count FROM pragma_table_info('bills') WHERE name='md_ld_status'",
+            ).getSingle();
+        if (mdLdStatusExists.data['count'] == 0) {
+          await customStatement(
+            "ALTER TABLE bills ADD COLUMN md_ld_status TEXT NOT NULL DEFAULT 'Pending'",
+          );
+        }
+
+        // Add md_ld_released_date column to bills table
+        final mdLdReleasedDateExists =
+            await customSelect(
+              "SELECT COUNT(*) as count FROM pragma_table_info('bills') WHERE name='md_ld_released_date'",
+            ).getSingle();
+        if (mdLdReleasedDateExists.data['count'] == 0) {
+          await customStatement(
+            "ALTER TABLE bills ADD COLUMN md_ld_released_date INTEGER",
           );
         }
       }

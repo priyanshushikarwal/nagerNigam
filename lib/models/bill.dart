@@ -21,6 +21,8 @@ class Bill {
   final double scrapAmount;
   final double scrapGstAmount;
   final double mdLdAmount;
+  final String mdLdStatus; // 'Pending' or 'Released'
+  final DateTime? mdLdReleasedDate;
   final double emptyOilIssued;
   final double emptyOilReturned;
 
@@ -75,6 +77,8 @@ class Bill {
     this.scrapAmount = 0,
     this.scrapGstAmount = 0,
     this.mdLdAmount = 0,
+    this.mdLdStatus = 'Pending',
+    this.mdLdReleasedDate,
     this.emptyOilIssued = 0,
     this.emptyOilReturned = 0,
     this.tdsAmount = 0,
@@ -173,6 +177,11 @@ class Bill {
       scrapAmount: (map['scrap_amount'] as num?)?.toDouble() ?? 0,
       scrapGstAmount: (map['scrap_gst_amount'] as num?)?.toDouble() ?? 0,
       mdLdAmount: (map['md_ld_amount'] as num?)?.toDouble() ?? 0,
+      mdLdStatus: (map['md_ld_status'] as String?) ?? 'Pending',
+      mdLdReleasedDate:
+          map['md_ld_released_date'] != null
+              ? DateTime.parse(map['md_ld_released_date'] as String)
+              : null,
       emptyOilIssued: (map['empty_oil_issued'] as num?)?.toDouble() ?? 0,
       emptyOilReturned: (map['empty_oil_returned'] as num?)?.toDouble() ?? 0,
       tdsAmount: (map['tds_amount'] as num?)?.toDouble() ?? 0,
@@ -237,6 +246,8 @@ class Bill {
       'scrap_amount': scrapAmount,
       'scrap_gst_amount': scrapGstAmount,
       'md_ld_amount': mdLdAmount,
+      'md_ld_status': mdLdStatus,
+      'md_ld_released_date': mdLdReleasedDate?.toIso8601String(),
       'empty_oil_issued': emptyOilIssued,
       'empty_oil_returned': emptyOilReturned,
       'tds_amount': tdsAmount,
@@ -280,6 +291,8 @@ class Bill {
     double? scrapAmount,
     double? scrapGstAmount,
     double? mdLdAmount,
+    String? mdLdStatus,
+    DateTime? mdLdReleasedDate,
     double? emptyOilIssued,
     double? emptyOilReturned,
     double? tdsAmount,
@@ -325,6 +338,8 @@ class Bill {
       scrapAmount: scrapAmount ?? this.scrapAmount,
       scrapGstAmount: scrapGstAmount ?? this.scrapGstAmount,
       mdLdAmount: mdLdAmount ?? this.mdLdAmount,
+      mdLdStatus: mdLdStatus ?? this.mdLdStatus,
+      mdLdReleasedDate: mdLdReleasedDate ?? this.mdLdReleasedDate,
       emptyOilIssued: emptyOilIssued ?? this.emptyOilIssued,
       emptyOilReturned: emptyOilReturned ?? this.emptyOilReturned,
       tdsAmount: tdsAmount ?? this.tdsAmount,
