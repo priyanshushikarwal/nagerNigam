@@ -126,6 +126,42 @@ class Bills extends Table {
   TextColumn get workOrderNo => text().nullable()();
   DateTimeColumn get workOrderDate => dateTime().nullable()();
   TextColumn get consignmentName => text().nullable()();
+  TextColumn get lotNo => text().named('lot_no').nullable()();
+  TextColumn get storeName => text().named('store_name').nullable()();
+  RealColumn get dMeterBox =>
+      real().named('d_meter_box').withDefault(const Constant(0.0))();
+  RealColumn get mdNpvAmount =>
+      real().named('md_npv_amount').withDefault(const Constant(0.0))();
+  RealColumn get emptyOilDrum =>
+      real().named('empty_oil_drum').withDefault(const Constant(0.0))();
+
+  // New Status Columns for Receivables
+  TextColumn get dMeterBoxStatus =>
+      text()
+          .named('d_meter_box_status')
+          .withDefault(const Constant('Pending'))();
+  DateTimeColumn get dMeterBoxReleasedDate =>
+      dateTime().named('d_meter_box_released_date').nullable()();
+
+  TextColumn get mdNpvStatus =>
+      text().named('md_npv_status').withDefault(const Constant('Pending'))();
+  DateTimeColumn get mdNpvReleasedDate =>
+      dateTime().named('md_npv_released_date').nullable()();
+
+  TextColumn get emptyOilDrumStatus =>
+      text()
+          .named('empty_oil_drum_status')
+          .withDefault(const Constant('Pending'))();
+  DateTimeColumn get emptyOilDrumReleasedDate =>
+      dateTime().named('empty_oil_drum_released_date').nullable()();
+
+  // Remark columns for individual receivables
+  TextColumn get dMeterBoxRemark =>
+      text().named('d_meter_box_remark').nullable()();
+  TextColumn get mdNpvRemark => text().named('md_npv_remark').nullable()();
+  TextColumn get emptyOilDrumRemark =>
+      text().named('empty_oil_drum_remark').nullable()();
+
   TextColumn get invoiceType => text().named('invoice_type').nullable()();
   TextColumn get proofPath => text().named('proof_path').nullable()();
   TextColumn get remarks => text().nullable()();
@@ -160,7 +196,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 12;
+  int get schemaVersion => 15;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -377,6 +413,98 @@ class AppDatabase extends _$AppDatabase {
             "ALTER TABLE bills ADD COLUMN md_ld_released_date INTEGER",
           );
         }
+      }
+      if (from < 13) {
+        // Add lot_no column
+        final lotNoExists =
+            await customSelect(
+              "SELECT COUNT(*) as count FROM pragma_table_info('bills') WHERE name='lot_no'",
+            ).getSingle();
+        if (lotNoExists.data['count'] == 0) {
+          await customStatement("ALTER TABLE bills ADD COLUMN lot_no TEXT");
+        }
+
+        // Add store_name column
+        final storeNameExists =
+            await customSelect(
+              "SELECT COUNT(*) as count FROM pragma_table_info('bills') WHERE name='store_name'",
+            ).getSingle();
+        if (storeNameExists.data['count'] == 0) {
+          await customStatement("ALTER TABLE bills ADD COLUMN store_name TEXT");
+        }
+
+        // Add d_meter_box column
+        final dMeterBoxExists =
+            await customSelect(
+              "SELECT COUNT(*) as count FROM pragma_table_info('bills') WHERE name='d_meter_box'",
+            ).getSingle();
+        if (dMeterBoxExists.data['count'] == 0) {
+          await customStatement(
+            "ALTER TABLE bills ADD COLUMN d_meter_box REAL NOT NULL DEFAULT 0.0",
+          );
+        }
+
+        // Add md_npv_amount column
+        final mdNpvAmountExists =
+            await customSelect(
+              "SELECT COUNT(*) as count FROM pragma_table_info('bills') WHERE name='md_npv_amount'",
+            ).getSingle();
+        if (mdNpvAmountExists.data['count'] == 0) {
+          await customStatement(
+            "ALTER TABLE bills ADD COLUMN md_npv_amount REAL NOT NULL DEFAULT 0.0",
+          );
+        }
+
+        // Add empty_oil_drum column
+        final emptyOilDrumExists =
+            await customSelect(
+              "SELECT COUNT(*) as count FROM pragma_table_info('bills') WHERE name='empty_oil_drum'",
+            ).getSingle();
+        if (emptyOilDrumExists.data['count'] == 0) {
+          await customStatement(
+            "ALTER TABLE bills ADD COLUMN empty_oil_drum REAL NOT NULL DEFAULT 0.0",
+          );
+        }
+      }
+      if (from < 14) {
+        // Helper inline function to safely add column
+        Future<void> addSafe(String col, String def) async {
+          final res =
+              await customSelect(
+                "SELECT COUNT(*) as count FROM pragma_table_info('bills') WHERE name='$col'",
+              ).getSingle();
+          if (res.data['count'] == 0) {
+            await customStatement("ALTER TABLE bills ADD COLUMN $col $def");
+          }
+        }
+
+        await addSafe('d_meter_box_status', "TEXT NOT NULL DEFAULT 'Pending'");
+        await addSafe('d_meter_box_released_date', "INTEGER");
+
+        await addSafe('md_npv_status', "TEXT NOT NULL DEFAULT 'Pending'");
+        await addSafe('md_npv_released_date', "INTEGER");
+
+        await addSafe(
+          'empty_oil_drum_status',
+          "TEXT NOT NULL DEFAULT 'Pending'",
+        );
+        await addSafe('empty_oil_drum_released_date', "INTEGER");
+      }
+      if (from < 15) {
+        // Helper inline function to safely add column
+        Future<void> addSafe(String col, String def) async {
+          final res =
+              await customSelect(
+                "SELECT COUNT(*) as count FROM pragma_table_info('bills') WHERE name='$col'",
+              ).getSingle();
+          if (res.data['count'] == 0) {
+            await customStatement("ALTER TABLE bills ADD COLUMN $col $def");
+          }
+        }
+
+        await addSafe('d_meter_box_remark', "TEXT");
+        await addSafe('md_npv_remark', "TEXT");
+        await addSafe('empty_oil_drum_remark', "TEXT");
       }
     },
     beforeOpen: (details) async {

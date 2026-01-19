@@ -628,7 +628,7 @@ class PdfService {
     const headers = [
       'S.\nNO',
       'BILL',
-      'BILL NO.',
+      'RR DATE',
       'AMOUNT\nOF BILL',
       'I.TAX\n(TDS@\n1%)',
       'SC\n(SAP)',
@@ -1710,7 +1710,7 @@ class PdfService {
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(4),
-              child: pw.Text('Bill Date', style: headerStyle),
+              child: pw.Text('RR Date', style: headerStyle),
             ),
             pw.Padding(
               padding: const pw.EdgeInsets.all(4),

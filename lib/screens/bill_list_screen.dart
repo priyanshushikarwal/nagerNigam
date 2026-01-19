@@ -412,7 +412,7 @@ class _BillListScreenState extends ConsumerState<BillListScreen> {
           children: [
             _headerCell('TN Number', flex: _tnFlex),
             _headerCell('Invoice No', flex: _invoiceNoFlex),
-            _headerCell('Bill Date', flex: _billDateFlex),
+            _headerCell('RR Date', flex: _billDateFlex),
             _headerCell('Work Order No', flex: _workOrderNoFlex),
             _headerCell('Work Order Date', flex: _workOrderDateFlex),
             _headerCell(

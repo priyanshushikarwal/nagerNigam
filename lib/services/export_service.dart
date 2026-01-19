@@ -47,7 +47,7 @@ class ExportService {
         [
           'TN Number',
           'DISCOM',
-          'Bill Date',
+          'RR Date',
           'Due Date',
           'Amount',
           'Status',
@@ -255,7 +255,7 @@ class ExportService {
               pw.TableHelper.fromTextArray(
                 headers: [
                   'TN Number',
-                  'Bill Date',
+                  'RR Date',
                   'Due Date',
                   'Amount',
                   'Status',

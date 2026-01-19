@@ -284,6 +284,11 @@ class SyncService extends StateNotifier<SyncStatus> {
                     'work_order_no': bill.workOrderNo,
                     'work_order_date': bill.workOrderDate?.toIso8601String(),
                     'consignment_name': bill.consignmentName,
+                    'lot_no': bill.lotNo,
+                    'store_name': bill.storeName,
+                    'd_meter_box': bill.dMeterBox,
+                    'md_npv_amount': bill.mdNpvAmount,
+                    'empty_oil_drum': bill.emptyOilDrum,
                     'invoice_type': bill.invoiceType,
                     'created_at': bill.createdAt.toIso8601String(),
                     'updated_at': now,
@@ -639,9 +644,10 @@ class SyncService extends StateNotifier<SyncStatus> {
             tds_amount, tcs_amount, gst_tds_amount,
             total_paid, due_amount,
             remarks, invoice_no, invoice_date,
-            work_order_no, work_order_date, consignment_name, invoice_type,
-            created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+            work_order_no, work_order_date, consignment_name,
+            lot_no, store_name, d_meter_box, md_npv_amount, empty_oil_drum,
+            invoice_type, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
           variables: [
             Variable.withInt(data['id'] as int),
             data['tender_id'] != null
@@ -721,6 +727,19 @@ class SyncService extends StateNotifier<SyncStatus> {
             data['consignment_name'] != null
                 ? Variable.withString(data['consignment_name'] as String)
                 : const Variable(null),
+            data['lot_no'] != null
+                ? Variable.withString(data['lot_no'] as String)
+                : const Variable(null),
+            data['store_name'] != null
+                ? Variable.withString(data['store_name'] as String)
+                : const Variable(null),
+            Variable.withReal((data['d_meter_box'] as num?)?.toDouble() ?? 0.0),
+            Variable.withReal(
+              (data['md_npv_amount'] as num?)?.toDouble() ?? 0.0,
+            ),
+            Variable.withReal(
+              (data['empty_oil_drum'] as num?)?.toDouble() ?? 0.0,
+            ),
             data['invoice_type'] != null
                 ? Variable.withString(data['invoice_type'] as String)
                 : const Variable(null),

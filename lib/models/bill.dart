@@ -44,6 +44,20 @@ class Bill {
   final String? workOrderNo;
   final DateTime? workOrderDate;
   final String? consignmentName;
+  final String? lotNo;
+  final String? storeName;
+  final double dMeterBox;
+  final double mdNpvAmount;
+  final double emptyOilDrum;
+  final String dMeterBoxStatus;
+  final DateTime? dMeterBoxReleasedDate;
+  final String mdNpvStatus;
+  final DateTime? mdNpvReleasedDate;
+  final String emptyOilDrumStatus;
+  final DateTime? emptyOilDrumReleasedDate;
+  final String? dMeterBoxRemark;
+  final String? mdNpvRemark;
+  final String? emptyOilDrumRemark;
   final String? proofPath;
   final String? invoiceType; // 'JOB Invoice' or 'PV Invoice'
 
@@ -94,6 +108,20 @@ class Bill {
     this.workOrderNo,
     this.workOrderDate,
     this.consignmentName,
+    this.lotNo,
+    this.storeName,
+    this.dMeterBox = 0,
+    this.mdNpvAmount = 0,
+    this.emptyOilDrum = 0,
+    this.dMeterBoxStatus = 'Pending',
+    this.dMeterBoxReleasedDate,
+    this.mdNpvStatus = 'Pending',
+    this.mdNpvReleasedDate,
+    this.emptyOilDrumStatus = 'Pending',
+    this.emptyOilDrumReleasedDate,
+    this.dMeterBoxRemark,
+    this.mdNpvRemark,
+    this.emptyOilDrumRemark,
     this.proofPath,
     this.invoiceType,
     required this.createdAt,
@@ -209,6 +237,30 @@ class Bill {
               ? DateTime.parse(map['work_order_date'] as String)
               : null,
       consignmentName: map['consignment_name'] as String?,
+      lotNo: map['lot_no'] as String?,
+      storeName: map['store_name'] as String?,
+      dMeterBox: (map['d_meter_box'] as num?)?.toDouble() ?? 0,
+      mdNpvAmount: (map['md_npv_amount'] as num?)?.toDouble() ?? 0,
+      emptyOilDrum: (map['empty_oil_drum'] as num?)?.toDouble() ?? 0,
+      dMeterBoxStatus: (map['d_meter_box_status'] as String?) ?? 'Pending',
+      dMeterBoxReleasedDate:
+          map['d_meter_box_released_date'] != null
+              ? DateTime.parse(map['d_meter_box_released_date'] as String)
+              : null,
+      mdNpvStatus: (map['md_npv_status'] as String?) ?? 'Pending',
+      mdNpvReleasedDate:
+          map['md_npv_released_date'] != null
+              ? DateTime.parse(map['md_npv_released_date'] as String)
+              : null,
+      emptyOilDrumStatus:
+          (map['empty_oil_drum_status'] as String?) ?? 'Pending',
+      emptyOilDrumReleasedDate:
+          map['empty_oil_drum_released_date'] != null
+              ? DateTime.parse(map['empty_oil_drum_released_date'] as String)
+              : null,
+      dMeterBoxRemark: map['d_meter_box_remark'] as String?,
+      mdNpvRemark: map['md_npv_remark'] as String?,
+      emptyOilDrumRemark: map['empty_oil_drum_remark'] as String?,
       proofPath: map['proof_path'] as String?,
       invoiceType: map['invoice_type'] as String?,
       createdAt: DateTime.parse(map['created_at'] as String),
@@ -263,6 +315,21 @@ class Bill {
       'work_order_no': workOrderNo,
       'work_order_date': workOrderDate?.toIso8601String(),
       'consignment_name': consignmentName,
+      'lot_no': lotNo,
+      'store_name': storeName,
+      'd_meter_box': dMeterBox,
+      'md_npv_amount': mdNpvAmount,
+      'empty_oil_drum': emptyOilDrum,
+      'd_meter_box_status': dMeterBoxStatus,
+      'd_meter_box_released_date': dMeterBoxReleasedDate?.toIso8601String(),
+      'md_npv_status': mdNpvStatus,
+      'md_npv_released_date': mdNpvReleasedDate?.toIso8601String(),
+      'empty_oil_drum_status': emptyOilDrumStatus,
+      'empty_oil_drum_released_date':
+          emptyOilDrumReleasedDate?.toIso8601String(),
+      'd_meter_box_remark': dMeterBoxRemark,
+      'md_npv_remark': mdNpvRemark,
+      'empty_oil_drum_remark': emptyOilDrumRemark,
       'proof_path': proofPath,
       'invoice_type': invoiceType,
       'created_at': createdAt.toIso8601String(),
@@ -310,6 +377,20 @@ class Bill {
     String? consignmentName,
     String? proofPath,
     String? invoiceType,
+    String? lotNo,
+    String? storeName,
+    double? dMeterBox,
+    double? mdNpvAmount,
+    double? emptyOilDrum,
+    String? dMeterBoxStatus,
+    DateTime? dMeterBoxReleasedDate,
+    String? mdNpvStatus,
+    DateTime? mdNpvReleasedDate,
+    String? emptyOilDrumStatus,
+    DateTime? emptyOilDrumReleasedDate,
+    String? dMeterBoxRemark,
+    String? mdNpvRemark,
+    String? emptyOilDrumRemark,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? firmName,
@@ -355,6 +436,22 @@ class Bill {
       workOrderNo: workOrderNo ?? this.workOrderNo,
       workOrderDate: workOrderDate ?? this.workOrderDate,
       consignmentName: consignmentName ?? this.consignmentName,
+      lotNo: lotNo ?? this.lotNo,
+      storeName: storeName ?? this.storeName,
+      dMeterBox: dMeterBox ?? this.dMeterBox,
+      mdNpvAmount: mdNpvAmount ?? this.mdNpvAmount,
+      emptyOilDrum: emptyOilDrum ?? this.emptyOilDrum,
+      dMeterBoxStatus: dMeterBoxStatus ?? this.dMeterBoxStatus,
+      dMeterBoxReleasedDate:
+          dMeterBoxReleasedDate ?? this.dMeterBoxReleasedDate,
+      mdNpvStatus: mdNpvStatus ?? this.mdNpvStatus,
+      mdNpvReleasedDate: mdNpvReleasedDate ?? this.mdNpvReleasedDate,
+      emptyOilDrumStatus: emptyOilDrumStatus ?? this.emptyOilDrumStatus,
+      emptyOilDrumReleasedDate:
+          emptyOilDrumReleasedDate ?? this.emptyOilDrumReleasedDate,
+      dMeterBoxRemark: dMeterBoxRemark ?? this.dMeterBoxRemark,
+      mdNpvRemark: mdNpvRemark ?? this.mdNpvRemark,
+      emptyOilDrumRemark: emptyOilDrumRemark ?? this.emptyOilDrumRemark,
       proofPath: proofPath ?? this.proofPath,
       invoiceType: invoiceType ?? this.invoiceType,
       createdAt: createdAt ?? this.createdAt,

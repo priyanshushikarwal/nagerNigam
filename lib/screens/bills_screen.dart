@@ -10,6 +10,8 @@ import '../state/tender_providers.dart';
 import '../state/client_firm_providers.dart';
 import '../state/service_providers.dart';
 import '../services/sync_service.dart';
+import '../widgets/bill_excel_view.dart';
+import 'package:flutter/material.dart' as material;
 
 class BillsScreen extends ConsumerStatefulWidget {
   const BillsScreen({super.key});
@@ -333,6 +335,234 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
     }
   }
 
+  Future<void> _showExcelViewDialog(Bill bill) async {
+    // Fetch fresh bill data from database to ensure we have latest remarks
+    final billsDao = ref.read(billsDaoProvider);
+    final freshBill = await billsDao.getBillById(bill.id!);
+
+    if (freshBill == null) {
+      if (mounted) {
+        displayInfoBar(
+          context,
+          builder:
+              (context, close) => InfoBar(
+                title: const Text('Error'),
+                content: const Text('Bill not found'),
+                severity: InfoBarSeverity.error,
+              ),
+        );
+      }
+      return;
+    }
+
+    // Fetch payments for this bill
+    final paymentsDao = ref.read(paymentsDaoProvider);
+    final payments = await paymentsDao.getPaymentsByBill(bill.id!);
+
+    await showDialog<void>(
+      context: context,
+      builder:
+          (context) => ContentDialog(
+            constraints: const BoxConstraints(maxWidth: 1200, maxHeight: 800),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [Text('Bill Summary - ${freshBill.tnNumber}')],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Excel Table
+                  Text(
+                    'Bill Summary (Excel View)',
+                    style: FluentTheme.of(context).typography.subtitle,
+                  ),
+                  const SizedBox(height: 12),
+                  BillExcelView(bill: freshBill),
+                  const SizedBox(height: 32),
+                  // Payment Ledger
+                  Text(
+                    'Payment Ledger',
+                    style: FluentTheme.of(context).typography.subtitle,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPaymentLedgerTable(freshBill, payments),
+                ],
+              ),
+            ),
+            actions: [
+              Button(
+                onPressed: () {
+                  Navigator.pop(context);
+                  context.go('/bills/${freshBill.id}');
+                },
+                child: const Text('View Full Details'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Widget _buildPaymentLedgerTable(Bill bill, List<Payment> payments) {
+    final currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 2);
+    final dateFormat = DateFormat('dd-MM-yyyy');
+
+    // Calculate net payable
+    final netPayable =
+        bill.invoiceAmount -
+        bill.tdsAmount -
+        bill.gstTdsAmount -
+        bill.tcsAmount -
+        bill.scrapAmount -
+        bill.scrapGstAmount;
+
+    // Sort payments by date
+    final sortedPayments = List<Payment>.from(payments)
+      ..sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+
+    // Build ledger entries
+    List<Map<String, dynamic>> ledgerEntries = [];
+
+    // First entry: Bill Created
+    ledgerEntries.add({
+      'date': bill.createdAt,
+      'type': 'Bill Created',
+      'paid': 0.0,
+      'totalPaid': 0.0,
+      'remaining': netPayable,
+      'status': 'Pending',
+      'remarks': '-',
+    });
+
+    // Add payment entries
+    double runningTotalPaid = 0;
+    for (var payment in sortedPayments) {
+      runningTotalPaid += payment.amountPaid;
+      final remaining = netPayable - runningTotalPaid;
+
+      String status;
+      if (remaining <= 0.01) {
+        status = 'Paid';
+      } else if (runningTotalPaid > 0) {
+        status = 'Partially Paid';
+      } else {
+        status = 'Pending';
+      }
+
+      ledgerEntries.add({
+        'date': payment.paymentDate,
+        'type': 'Payment Received',
+        'paid': payment.amountPaid,
+        'totalPaid': runningTotalPaid,
+        'remaining': remaining,
+        'status': status,
+        'remarks': payment.remarks ?? '-',
+      });
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey[60]),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: material.DataTable(
+          headingRowColor: material.MaterialStateProperty.all(Colors.grey[20]),
+          columns: [
+            material.DataColumn(
+              label: Text(
+                'Date',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            material.DataColumn(
+              label: Text(
+                'Type',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            material.DataColumn(
+              label: Text(
+                'Amount Paid',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            material.DataColumn(
+              label: Text(
+                'Total Paid',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            material.DataColumn(
+              label: Text(
+                'Remaining',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            material.DataColumn(
+              label: Text(
+                'Status',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            material.DataColumn(
+              label: Text(
+                'Remarks',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+          rows:
+              ledgerEntries.map((entry) {
+                return material.DataRow(
+                  cells: [
+                    material.DataCell(Text(dateFormat.format(entry['date']))),
+                    material.DataCell(Text(entry['type'])),
+                    material.DataCell(
+                      Text(currencyFormat.format(entry['paid'])),
+                    ),
+                    material.DataCell(
+                      Text(currencyFormat.format(entry['totalPaid'])),
+                    ),
+                    material.DataCell(
+                      Text(
+                        currencyFormat.format(entry['remaining']),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color:
+                              entry['remaining'] <= 0.01
+                                  ? Colors.green
+                                  : Colors.orange,
+                        ),
+                      ),
+                    ),
+                    material.DataCell(
+                      Text(
+                        entry['status'],
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color:
+                              entry['status'] == 'Paid'
+                                  ? Colors.green
+                                  : Colors.orange,
+                        ),
+                      ),
+                    ),
+                    material.DataCell(Text(entry['remarks'])),
+                  ],
+                );
+              }).toList(),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return ScaffoldPage(
@@ -642,7 +872,19 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                     ),
                     Expanded(
                       flex: 2,
-                      child: Text('Bill Date', style: _headerStyle()),
+                      child: Text('Lot No', style: _headerStyle()),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text('Store', style: _headerStyle()),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text('Type', style: _headerStyle()),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text('RR Date', style: _headerStyle()),
                     ),
                     Expanded(
                       flex: 2,
@@ -795,6 +1037,24 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              Expanded(
+                flex: 2,
+                child: Text(bill.lotNo ?? '-', overflow: TextOverflow.ellipsis),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  bill.storeName ?? '-',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  bill.invoiceType ?? '-',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               Expanded(flex: 2, child: Text(_dateFormat.format(bill.billDate))),
               Expanded(
                 flex: 2,
@@ -927,7 +1187,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                   children: [
                     IconButton(
                       icon: const Icon(FluentIcons.view, size: 16),
-                      onPressed: () => context.go('/bills/${bill.id}'),
+                      onPressed: () => _showExcelViewDialog(bill),
                     ),
                     IconButton(
                       icon: const Icon(FluentIcons.edit, size: 16),

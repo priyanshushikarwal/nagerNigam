@@ -1842,6 +1842,165 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _lotNoMeta = const VerificationMeta('lotNo');
+  @override
+  late final GeneratedColumn<String> lotNo = GeneratedColumn<String>(
+    'lot_no',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _storeNameMeta = const VerificationMeta(
+    'storeName',
+  );
+  @override
+  late final GeneratedColumn<String> storeName = GeneratedColumn<String>(
+    'store_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dMeterBoxMeta = const VerificationMeta(
+    'dMeterBox',
+  );
+  @override
+  late final GeneratedColumn<double> dMeterBox = GeneratedColumn<double>(
+    'd_meter_box',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _mdNpvAmountMeta = const VerificationMeta(
+    'mdNpvAmount',
+  );
+  @override
+  late final GeneratedColumn<double> mdNpvAmount = GeneratedColumn<double>(
+    'md_npv_amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _emptyOilDrumMeta = const VerificationMeta(
+    'emptyOilDrum',
+  );
+  @override
+  late final GeneratedColumn<double> emptyOilDrum = GeneratedColumn<double>(
+    'empty_oil_drum',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
+  static const VerificationMeta _dMeterBoxStatusMeta = const VerificationMeta(
+    'dMeterBoxStatus',
+  );
+  @override
+  late final GeneratedColumn<String> dMeterBoxStatus = GeneratedColumn<String>(
+    'd_meter_box_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Pending'),
+  );
+  static const VerificationMeta _dMeterBoxReleasedDateMeta =
+      const VerificationMeta('dMeterBoxReleasedDate');
+  @override
+  late final GeneratedColumn<DateTime> dMeterBoxReleasedDate =
+      GeneratedColumn<DateTime>(
+        'd_meter_box_released_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _mdNpvStatusMeta = const VerificationMeta(
+    'mdNpvStatus',
+  );
+  @override
+  late final GeneratedColumn<String> mdNpvStatus = GeneratedColumn<String>(
+    'md_npv_status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Pending'),
+  );
+  static const VerificationMeta _mdNpvReleasedDateMeta = const VerificationMeta(
+    'mdNpvReleasedDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> mdNpvReleasedDate =
+      GeneratedColumn<DateTime>(
+        'md_npv_released_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _emptyOilDrumStatusMeta =
+      const VerificationMeta('emptyOilDrumStatus');
+  @override
+  late final GeneratedColumn<String> emptyOilDrumStatus =
+      GeneratedColumn<String>(
+        'empty_oil_drum_status',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant('Pending'),
+      );
+  static const VerificationMeta _emptyOilDrumReleasedDateMeta =
+      const VerificationMeta('emptyOilDrumReleasedDate');
+  @override
+  late final GeneratedColumn<DateTime> emptyOilDrumReleasedDate =
+      GeneratedColumn<DateTime>(
+        'empty_oil_drum_released_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _dMeterBoxRemarkMeta = const VerificationMeta(
+    'dMeterBoxRemark',
+  );
+  @override
+  late final GeneratedColumn<String> dMeterBoxRemark = GeneratedColumn<String>(
+    'd_meter_box_remark',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mdNpvRemarkMeta = const VerificationMeta(
+    'mdNpvRemark',
+  );
+  @override
+  late final GeneratedColumn<String> mdNpvRemark = GeneratedColumn<String>(
+    'md_npv_remark',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _emptyOilDrumRemarkMeta =
+      const VerificationMeta('emptyOilDrumRemark');
+  @override
+  late final GeneratedColumn<String> emptyOilDrumRemark =
+      GeneratedColumn<String>(
+        'empty_oil_drum_remark',
+        aliasedName,
+        true,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _invoiceTypeMeta = const VerificationMeta(
     'invoiceType',
   );
@@ -1937,6 +2096,20 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
     workOrderNo,
     workOrderDate,
     consignmentName,
+    lotNo,
+    storeName,
+    dMeterBox,
+    mdNpvAmount,
+    emptyOilDrum,
+    dMeterBoxStatus,
+    dMeterBoxReleasedDate,
+    mdNpvStatus,
+    mdNpvReleasedDate,
+    emptyOilDrumStatus,
+    emptyOilDrumReleasedDate,
+    dMeterBoxRemark,
+    mdNpvRemark,
+    emptyOilDrumRemark,
     invoiceType,
     proofPath,
     remarks,
@@ -2236,6 +2409,123 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
         ),
       );
     }
+    if (data.containsKey('lot_no')) {
+      context.handle(
+        _lotNoMeta,
+        lotNo.isAcceptableOrUnknown(data['lot_no']!, _lotNoMeta),
+      );
+    }
+    if (data.containsKey('store_name')) {
+      context.handle(
+        _storeNameMeta,
+        storeName.isAcceptableOrUnknown(data['store_name']!, _storeNameMeta),
+      );
+    }
+    if (data.containsKey('d_meter_box')) {
+      context.handle(
+        _dMeterBoxMeta,
+        dMeterBox.isAcceptableOrUnknown(data['d_meter_box']!, _dMeterBoxMeta),
+      );
+    }
+    if (data.containsKey('md_npv_amount')) {
+      context.handle(
+        _mdNpvAmountMeta,
+        mdNpvAmount.isAcceptableOrUnknown(
+          data['md_npv_amount']!,
+          _mdNpvAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('empty_oil_drum')) {
+      context.handle(
+        _emptyOilDrumMeta,
+        emptyOilDrum.isAcceptableOrUnknown(
+          data['empty_oil_drum']!,
+          _emptyOilDrumMeta,
+        ),
+      );
+    }
+    if (data.containsKey('d_meter_box_status')) {
+      context.handle(
+        _dMeterBoxStatusMeta,
+        dMeterBoxStatus.isAcceptableOrUnknown(
+          data['d_meter_box_status']!,
+          _dMeterBoxStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('d_meter_box_released_date')) {
+      context.handle(
+        _dMeterBoxReleasedDateMeta,
+        dMeterBoxReleasedDate.isAcceptableOrUnknown(
+          data['d_meter_box_released_date']!,
+          _dMeterBoxReleasedDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('md_npv_status')) {
+      context.handle(
+        _mdNpvStatusMeta,
+        mdNpvStatus.isAcceptableOrUnknown(
+          data['md_npv_status']!,
+          _mdNpvStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('md_npv_released_date')) {
+      context.handle(
+        _mdNpvReleasedDateMeta,
+        mdNpvReleasedDate.isAcceptableOrUnknown(
+          data['md_npv_released_date']!,
+          _mdNpvReleasedDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('empty_oil_drum_status')) {
+      context.handle(
+        _emptyOilDrumStatusMeta,
+        emptyOilDrumStatus.isAcceptableOrUnknown(
+          data['empty_oil_drum_status']!,
+          _emptyOilDrumStatusMeta,
+        ),
+      );
+    }
+    if (data.containsKey('empty_oil_drum_released_date')) {
+      context.handle(
+        _emptyOilDrumReleasedDateMeta,
+        emptyOilDrumReleasedDate.isAcceptableOrUnknown(
+          data['empty_oil_drum_released_date']!,
+          _emptyOilDrumReleasedDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('d_meter_box_remark')) {
+      context.handle(
+        _dMeterBoxRemarkMeta,
+        dMeterBoxRemark.isAcceptableOrUnknown(
+          data['d_meter_box_remark']!,
+          _dMeterBoxRemarkMeta,
+        ),
+      );
+    }
+    if (data.containsKey('md_npv_remark')) {
+      context.handle(
+        _mdNpvRemarkMeta,
+        mdNpvRemark.isAcceptableOrUnknown(
+          data['md_npv_remark']!,
+          _mdNpvRemarkMeta,
+        ),
+      );
+    }
+    if (data.containsKey('empty_oil_drum_remark')) {
+      context.handle(
+        _emptyOilDrumRemarkMeta,
+        emptyOilDrumRemark.isAcceptableOrUnknown(
+          data['empty_oil_drum_remark']!,
+          _emptyOilDrumRemarkMeta,
+        ),
+      );
+    }
     if (data.containsKey('invoice_type')) {
       context.handle(
         _invoiceTypeMeta,
@@ -2444,6 +2734,68 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
         DriftSqlType.string,
         data['${effectivePrefix}consignment_name'],
       ),
+      lotNo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lot_no'],
+      ),
+      storeName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}store_name'],
+      ),
+      dMeterBox:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}d_meter_box'],
+          )!,
+      mdNpvAmount:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}md_npv_amount'],
+          )!,
+      emptyOilDrum:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.double,
+            data['${effectivePrefix}empty_oil_drum'],
+          )!,
+      dMeterBoxStatus:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}d_meter_box_status'],
+          )!,
+      dMeterBoxReleasedDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}d_meter_box_released_date'],
+      ),
+      mdNpvStatus:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}md_npv_status'],
+          )!,
+      mdNpvReleasedDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}md_npv_released_date'],
+      ),
+      emptyOilDrumStatus:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}empty_oil_drum_status'],
+          )!,
+      emptyOilDrumReleasedDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}empty_oil_drum_released_date'],
+      ),
+      dMeterBoxRemark: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}d_meter_box_remark'],
+      ),
+      mdNpvRemark: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}md_npv_remark'],
+      ),
+      emptyOilDrumRemark: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}empty_oil_drum_remark'],
+      ),
       invoiceType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}invoice_type'],
@@ -2512,6 +2864,20 @@ class Bill extends DataClass implements Insertable<Bill> {
   final String? workOrderNo;
   final DateTime? workOrderDate;
   final String? consignmentName;
+  final String? lotNo;
+  final String? storeName;
+  final double dMeterBox;
+  final double mdNpvAmount;
+  final double emptyOilDrum;
+  final String dMeterBoxStatus;
+  final DateTime? dMeterBoxReleasedDate;
+  final String mdNpvStatus;
+  final DateTime? mdNpvReleasedDate;
+  final String emptyOilDrumStatus;
+  final DateTime? emptyOilDrumReleasedDate;
+  final String? dMeterBoxRemark;
+  final String? mdNpvRemark;
+  final String? emptyOilDrumRemark;
   final String? invoiceType;
   final String? proofPath;
   final String? remarks;
@@ -2554,6 +2920,20 @@ class Bill extends DataClass implements Insertable<Bill> {
     this.workOrderNo,
     this.workOrderDate,
     this.consignmentName,
+    this.lotNo,
+    this.storeName,
+    required this.dMeterBox,
+    required this.mdNpvAmount,
+    required this.emptyOilDrum,
+    required this.dMeterBoxStatus,
+    this.dMeterBoxReleasedDate,
+    required this.mdNpvStatus,
+    this.mdNpvReleasedDate,
+    required this.emptyOilDrumStatus,
+    this.emptyOilDrumReleasedDate,
+    this.dMeterBoxRemark,
+    this.mdNpvRemark,
+    this.emptyOilDrumRemark,
     this.invoiceType,
     this.proofPath,
     this.remarks,
@@ -2626,6 +3006,40 @@ class Bill extends DataClass implements Insertable<Bill> {
     }
     if (!nullToAbsent || consignmentName != null) {
       map['consignment_name'] = Variable<String>(consignmentName);
+    }
+    if (!nullToAbsent || lotNo != null) {
+      map['lot_no'] = Variable<String>(lotNo);
+    }
+    if (!nullToAbsent || storeName != null) {
+      map['store_name'] = Variable<String>(storeName);
+    }
+    map['d_meter_box'] = Variable<double>(dMeterBox);
+    map['md_npv_amount'] = Variable<double>(mdNpvAmount);
+    map['empty_oil_drum'] = Variable<double>(emptyOilDrum);
+    map['d_meter_box_status'] = Variable<String>(dMeterBoxStatus);
+    if (!nullToAbsent || dMeterBoxReleasedDate != null) {
+      map['d_meter_box_released_date'] = Variable<DateTime>(
+        dMeterBoxReleasedDate,
+      );
+    }
+    map['md_npv_status'] = Variable<String>(mdNpvStatus);
+    if (!nullToAbsent || mdNpvReleasedDate != null) {
+      map['md_npv_released_date'] = Variable<DateTime>(mdNpvReleasedDate);
+    }
+    map['empty_oil_drum_status'] = Variable<String>(emptyOilDrumStatus);
+    if (!nullToAbsent || emptyOilDrumReleasedDate != null) {
+      map['empty_oil_drum_released_date'] = Variable<DateTime>(
+        emptyOilDrumReleasedDate,
+      );
+    }
+    if (!nullToAbsent || dMeterBoxRemark != null) {
+      map['d_meter_box_remark'] = Variable<String>(dMeterBoxRemark);
+    }
+    if (!nullToAbsent || mdNpvRemark != null) {
+      map['md_npv_remark'] = Variable<String>(mdNpvRemark);
+    }
+    if (!nullToAbsent || emptyOilDrumRemark != null) {
+      map['empty_oil_drum_remark'] = Variable<String>(emptyOilDrumRemark);
     }
     if (!nullToAbsent || invoiceType != null) {
       map['invoice_type'] = Variable<String>(invoiceType);
@@ -2721,6 +3135,42 @@ class Bill extends DataClass implements Insertable<Bill> {
           consignmentName == null && nullToAbsent
               ? const Value.absent()
               : Value(consignmentName),
+      lotNo:
+          lotNo == null && nullToAbsent ? const Value.absent() : Value(lotNo),
+      storeName:
+          storeName == null && nullToAbsent
+              ? const Value.absent()
+              : Value(storeName),
+      dMeterBox: Value(dMeterBox),
+      mdNpvAmount: Value(mdNpvAmount),
+      emptyOilDrum: Value(emptyOilDrum),
+      dMeterBoxStatus: Value(dMeterBoxStatus),
+      dMeterBoxReleasedDate:
+          dMeterBoxReleasedDate == null && nullToAbsent
+              ? const Value.absent()
+              : Value(dMeterBoxReleasedDate),
+      mdNpvStatus: Value(mdNpvStatus),
+      mdNpvReleasedDate:
+          mdNpvReleasedDate == null && nullToAbsent
+              ? const Value.absent()
+              : Value(mdNpvReleasedDate),
+      emptyOilDrumStatus: Value(emptyOilDrumStatus),
+      emptyOilDrumReleasedDate:
+          emptyOilDrumReleasedDate == null && nullToAbsent
+              ? const Value.absent()
+              : Value(emptyOilDrumReleasedDate),
+      dMeterBoxRemark:
+          dMeterBoxRemark == null && nullToAbsent
+              ? const Value.absent()
+              : Value(dMeterBoxRemark),
+      mdNpvRemark:
+          mdNpvRemark == null && nullToAbsent
+              ? const Value.absent()
+              : Value(mdNpvRemark),
+      emptyOilDrumRemark:
+          emptyOilDrumRemark == null && nullToAbsent
+              ? const Value.absent()
+              : Value(emptyOilDrumRemark),
       invoiceType:
           invoiceType == null && nullToAbsent
               ? const Value.absent()
@@ -2782,6 +3232,30 @@ class Bill extends DataClass implements Insertable<Bill> {
       workOrderNo: serializer.fromJson<String?>(json['workOrderNo']),
       workOrderDate: serializer.fromJson<DateTime?>(json['workOrderDate']),
       consignmentName: serializer.fromJson<String?>(json['consignmentName']),
+      lotNo: serializer.fromJson<String?>(json['lotNo']),
+      storeName: serializer.fromJson<String?>(json['storeName']),
+      dMeterBox: serializer.fromJson<double>(json['dMeterBox']),
+      mdNpvAmount: serializer.fromJson<double>(json['mdNpvAmount']),
+      emptyOilDrum: serializer.fromJson<double>(json['emptyOilDrum']),
+      dMeterBoxStatus: serializer.fromJson<String>(json['dMeterBoxStatus']),
+      dMeterBoxReleasedDate: serializer.fromJson<DateTime?>(
+        json['dMeterBoxReleasedDate'],
+      ),
+      mdNpvStatus: serializer.fromJson<String>(json['mdNpvStatus']),
+      mdNpvReleasedDate: serializer.fromJson<DateTime?>(
+        json['mdNpvReleasedDate'],
+      ),
+      emptyOilDrumStatus: serializer.fromJson<String>(
+        json['emptyOilDrumStatus'],
+      ),
+      emptyOilDrumReleasedDate: serializer.fromJson<DateTime?>(
+        json['emptyOilDrumReleasedDate'],
+      ),
+      dMeterBoxRemark: serializer.fromJson<String?>(json['dMeterBoxRemark']),
+      mdNpvRemark: serializer.fromJson<String?>(json['mdNpvRemark']),
+      emptyOilDrumRemark: serializer.fromJson<String?>(
+        json['emptyOilDrumRemark'],
+      ),
       invoiceType: serializer.fromJson<String?>(json['invoiceType']),
       proofPath: serializer.fromJson<String?>(json['proofPath']),
       remarks: serializer.fromJson<String?>(json['remarks']),
@@ -2829,6 +3303,24 @@ class Bill extends DataClass implements Insertable<Bill> {
       'workOrderNo': serializer.toJson<String?>(workOrderNo),
       'workOrderDate': serializer.toJson<DateTime?>(workOrderDate),
       'consignmentName': serializer.toJson<String?>(consignmentName),
+      'lotNo': serializer.toJson<String?>(lotNo),
+      'storeName': serializer.toJson<String?>(storeName),
+      'dMeterBox': serializer.toJson<double>(dMeterBox),
+      'mdNpvAmount': serializer.toJson<double>(mdNpvAmount),
+      'emptyOilDrum': serializer.toJson<double>(emptyOilDrum),
+      'dMeterBoxStatus': serializer.toJson<String>(dMeterBoxStatus),
+      'dMeterBoxReleasedDate': serializer.toJson<DateTime?>(
+        dMeterBoxReleasedDate,
+      ),
+      'mdNpvStatus': serializer.toJson<String>(mdNpvStatus),
+      'mdNpvReleasedDate': serializer.toJson<DateTime?>(mdNpvReleasedDate),
+      'emptyOilDrumStatus': serializer.toJson<String>(emptyOilDrumStatus),
+      'emptyOilDrumReleasedDate': serializer.toJson<DateTime?>(
+        emptyOilDrumReleasedDate,
+      ),
+      'dMeterBoxRemark': serializer.toJson<String?>(dMeterBoxRemark),
+      'mdNpvRemark': serializer.toJson<String?>(mdNpvRemark),
+      'emptyOilDrumRemark': serializer.toJson<String?>(emptyOilDrumRemark),
       'invoiceType': serializer.toJson<String?>(invoiceType),
       'proofPath': serializer.toJson<String?>(proofPath),
       'remarks': serializer.toJson<String?>(remarks),
@@ -2874,6 +3366,20 @@ class Bill extends DataClass implements Insertable<Bill> {
     Value<String?> workOrderNo = const Value.absent(),
     Value<DateTime?> workOrderDate = const Value.absent(),
     Value<String?> consignmentName = const Value.absent(),
+    Value<String?> lotNo = const Value.absent(),
+    Value<String?> storeName = const Value.absent(),
+    double? dMeterBox,
+    double? mdNpvAmount,
+    double? emptyOilDrum,
+    String? dMeterBoxStatus,
+    Value<DateTime?> dMeterBoxReleasedDate = const Value.absent(),
+    String? mdNpvStatus,
+    Value<DateTime?> mdNpvReleasedDate = const Value.absent(),
+    String? emptyOilDrumStatus,
+    Value<DateTime?> emptyOilDrumReleasedDate = const Value.absent(),
+    Value<String?> dMeterBoxRemark = const Value.absent(),
+    Value<String?> mdNpvRemark = const Value.absent(),
+    Value<String?> emptyOilDrumRemark = const Value.absent(),
     Value<String?> invoiceType = const Value.absent(),
     Value<String?> proofPath = const Value.absent(),
     Value<String?> remarks = const Value.absent(),
@@ -2925,6 +3431,33 @@ class Bill extends DataClass implements Insertable<Bill> {
         workOrderDate.present ? workOrderDate.value : this.workOrderDate,
     consignmentName:
         consignmentName.present ? consignmentName.value : this.consignmentName,
+    lotNo: lotNo.present ? lotNo.value : this.lotNo,
+    storeName: storeName.present ? storeName.value : this.storeName,
+    dMeterBox: dMeterBox ?? this.dMeterBox,
+    mdNpvAmount: mdNpvAmount ?? this.mdNpvAmount,
+    emptyOilDrum: emptyOilDrum ?? this.emptyOilDrum,
+    dMeterBoxStatus: dMeterBoxStatus ?? this.dMeterBoxStatus,
+    dMeterBoxReleasedDate:
+        dMeterBoxReleasedDate.present
+            ? dMeterBoxReleasedDate.value
+            : this.dMeterBoxReleasedDate,
+    mdNpvStatus: mdNpvStatus ?? this.mdNpvStatus,
+    mdNpvReleasedDate:
+        mdNpvReleasedDate.present
+            ? mdNpvReleasedDate.value
+            : this.mdNpvReleasedDate,
+    emptyOilDrumStatus: emptyOilDrumStatus ?? this.emptyOilDrumStatus,
+    emptyOilDrumReleasedDate:
+        emptyOilDrumReleasedDate.present
+            ? emptyOilDrumReleasedDate.value
+            : this.emptyOilDrumReleasedDate,
+    dMeterBoxRemark:
+        dMeterBoxRemark.present ? dMeterBoxRemark.value : this.dMeterBoxRemark,
+    mdNpvRemark: mdNpvRemark.present ? mdNpvRemark.value : this.mdNpvRemark,
+    emptyOilDrumRemark:
+        emptyOilDrumRemark.present
+            ? emptyOilDrumRemark.value
+            : this.emptyOilDrumRemark,
     invoiceType: invoiceType.present ? invoiceType.value : this.invoiceType,
     proofPath: proofPath.present ? proofPath.value : this.proofPath,
     remarks: remarks.present ? remarks.value : this.remarks,
@@ -3017,6 +3550,47 @@ class Bill extends DataClass implements Insertable<Bill> {
           data.consignmentName.present
               ? data.consignmentName.value
               : this.consignmentName,
+      lotNo: data.lotNo.present ? data.lotNo.value : this.lotNo,
+      storeName: data.storeName.present ? data.storeName.value : this.storeName,
+      dMeterBox: data.dMeterBox.present ? data.dMeterBox.value : this.dMeterBox,
+      mdNpvAmount:
+          data.mdNpvAmount.present ? data.mdNpvAmount.value : this.mdNpvAmount,
+      emptyOilDrum:
+          data.emptyOilDrum.present
+              ? data.emptyOilDrum.value
+              : this.emptyOilDrum,
+      dMeterBoxStatus:
+          data.dMeterBoxStatus.present
+              ? data.dMeterBoxStatus.value
+              : this.dMeterBoxStatus,
+      dMeterBoxReleasedDate:
+          data.dMeterBoxReleasedDate.present
+              ? data.dMeterBoxReleasedDate.value
+              : this.dMeterBoxReleasedDate,
+      mdNpvStatus:
+          data.mdNpvStatus.present ? data.mdNpvStatus.value : this.mdNpvStatus,
+      mdNpvReleasedDate:
+          data.mdNpvReleasedDate.present
+              ? data.mdNpvReleasedDate.value
+              : this.mdNpvReleasedDate,
+      emptyOilDrumStatus:
+          data.emptyOilDrumStatus.present
+              ? data.emptyOilDrumStatus.value
+              : this.emptyOilDrumStatus,
+      emptyOilDrumReleasedDate:
+          data.emptyOilDrumReleasedDate.present
+              ? data.emptyOilDrumReleasedDate.value
+              : this.emptyOilDrumReleasedDate,
+      dMeterBoxRemark:
+          data.dMeterBoxRemark.present
+              ? data.dMeterBoxRemark.value
+              : this.dMeterBoxRemark,
+      mdNpvRemark:
+          data.mdNpvRemark.present ? data.mdNpvRemark.value : this.mdNpvRemark,
+      emptyOilDrumRemark:
+          data.emptyOilDrumRemark.present
+              ? data.emptyOilDrumRemark.value
+              : this.emptyOilDrumRemark,
       invoiceType:
           data.invoiceType.present ? data.invoiceType.value : this.invoiceType,
       proofPath: data.proofPath.present ? data.proofPath.value : this.proofPath,
@@ -3065,6 +3639,20 @@ class Bill extends DataClass implements Insertable<Bill> {
           ..write('workOrderNo: $workOrderNo, ')
           ..write('workOrderDate: $workOrderDate, ')
           ..write('consignmentName: $consignmentName, ')
+          ..write('lotNo: $lotNo, ')
+          ..write('storeName: $storeName, ')
+          ..write('dMeterBox: $dMeterBox, ')
+          ..write('mdNpvAmount: $mdNpvAmount, ')
+          ..write('emptyOilDrum: $emptyOilDrum, ')
+          ..write('dMeterBoxStatus: $dMeterBoxStatus, ')
+          ..write('dMeterBoxReleasedDate: $dMeterBoxReleasedDate, ')
+          ..write('mdNpvStatus: $mdNpvStatus, ')
+          ..write('mdNpvReleasedDate: $mdNpvReleasedDate, ')
+          ..write('emptyOilDrumStatus: $emptyOilDrumStatus, ')
+          ..write('emptyOilDrumReleasedDate: $emptyOilDrumReleasedDate, ')
+          ..write('dMeterBoxRemark: $dMeterBoxRemark, ')
+          ..write('mdNpvRemark: $mdNpvRemark, ')
+          ..write('emptyOilDrumRemark: $emptyOilDrumRemark, ')
           ..write('invoiceType: $invoiceType, ')
           ..write('proofPath: $proofPath, ')
           ..write('remarks: $remarks, ')
@@ -3112,6 +3700,20 @@ class Bill extends DataClass implements Insertable<Bill> {
     workOrderNo,
     workOrderDate,
     consignmentName,
+    lotNo,
+    storeName,
+    dMeterBox,
+    mdNpvAmount,
+    emptyOilDrum,
+    dMeterBoxStatus,
+    dMeterBoxReleasedDate,
+    mdNpvStatus,
+    mdNpvReleasedDate,
+    emptyOilDrumStatus,
+    emptyOilDrumReleasedDate,
+    dMeterBoxRemark,
+    mdNpvRemark,
+    emptyOilDrumRemark,
     invoiceType,
     proofPath,
     remarks,
@@ -3158,6 +3760,20 @@ class Bill extends DataClass implements Insertable<Bill> {
           other.workOrderNo == this.workOrderNo &&
           other.workOrderDate == this.workOrderDate &&
           other.consignmentName == this.consignmentName &&
+          other.lotNo == this.lotNo &&
+          other.storeName == this.storeName &&
+          other.dMeterBox == this.dMeterBox &&
+          other.mdNpvAmount == this.mdNpvAmount &&
+          other.emptyOilDrum == this.emptyOilDrum &&
+          other.dMeterBoxStatus == this.dMeterBoxStatus &&
+          other.dMeterBoxReleasedDate == this.dMeterBoxReleasedDate &&
+          other.mdNpvStatus == this.mdNpvStatus &&
+          other.mdNpvReleasedDate == this.mdNpvReleasedDate &&
+          other.emptyOilDrumStatus == this.emptyOilDrumStatus &&
+          other.emptyOilDrumReleasedDate == this.emptyOilDrumReleasedDate &&
+          other.dMeterBoxRemark == this.dMeterBoxRemark &&
+          other.mdNpvRemark == this.mdNpvRemark &&
+          other.emptyOilDrumRemark == this.emptyOilDrumRemark &&
           other.invoiceType == this.invoiceType &&
           other.proofPath == this.proofPath &&
           other.remarks == this.remarks &&
@@ -3202,6 +3818,20 @@ class BillsCompanion extends UpdateCompanion<Bill> {
   final Value<String?> workOrderNo;
   final Value<DateTime?> workOrderDate;
   final Value<String?> consignmentName;
+  final Value<String?> lotNo;
+  final Value<String?> storeName;
+  final Value<double> dMeterBox;
+  final Value<double> mdNpvAmount;
+  final Value<double> emptyOilDrum;
+  final Value<String> dMeterBoxStatus;
+  final Value<DateTime?> dMeterBoxReleasedDate;
+  final Value<String> mdNpvStatus;
+  final Value<DateTime?> mdNpvReleasedDate;
+  final Value<String> emptyOilDrumStatus;
+  final Value<DateTime?> emptyOilDrumReleasedDate;
+  final Value<String?> dMeterBoxRemark;
+  final Value<String?> mdNpvRemark;
+  final Value<String?> emptyOilDrumRemark;
   final Value<String?> invoiceType;
   final Value<String?> proofPath;
   final Value<String?> remarks;
@@ -3244,6 +3874,20 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     this.workOrderNo = const Value.absent(),
     this.workOrderDate = const Value.absent(),
     this.consignmentName = const Value.absent(),
+    this.lotNo = const Value.absent(),
+    this.storeName = const Value.absent(),
+    this.dMeterBox = const Value.absent(),
+    this.mdNpvAmount = const Value.absent(),
+    this.emptyOilDrum = const Value.absent(),
+    this.dMeterBoxStatus = const Value.absent(),
+    this.dMeterBoxReleasedDate = const Value.absent(),
+    this.mdNpvStatus = const Value.absent(),
+    this.mdNpvReleasedDate = const Value.absent(),
+    this.emptyOilDrumStatus = const Value.absent(),
+    this.emptyOilDrumReleasedDate = const Value.absent(),
+    this.dMeterBoxRemark = const Value.absent(),
+    this.mdNpvRemark = const Value.absent(),
+    this.emptyOilDrumRemark = const Value.absent(),
     this.invoiceType = const Value.absent(),
     this.proofPath = const Value.absent(),
     this.remarks = const Value.absent(),
@@ -3287,6 +3931,20 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     this.workOrderNo = const Value.absent(),
     this.workOrderDate = const Value.absent(),
     this.consignmentName = const Value.absent(),
+    this.lotNo = const Value.absent(),
+    this.storeName = const Value.absent(),
+    this.dMeterBox = const Value.absent(),
+    this.mdNpvAmount = const Value.absent(),
+    this.emptyOilDrum = const Value.absent(),
+    this.dMeterBoxStatus = const Value.absent(),
+    this.dMeterBoxReleasedDate = const Value.absent(),
+    this.mdNpvStatus = const Value.absent(),
+    this.mdNpvReleasedDate = const Value.absent(),
+    this.emptyOilDrumStatus = const Value.absent(),
+    this.emptyOilDrumReleasedDate = const Value.absent(),
+    this.dMeterBoxRemark = const Value.absent(),
+    this.mdNpvRemark = const Value.absent(),
+    this.emptyOilDrumRemark = const Value.absent(),
     this.invoiceType = const Value.absent(),
     this.proofPath = const Value.absent(),
     this.remarks = const Value.absent(),
@@ -3333,6 +3991,20 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     Expression<String>? workOrderNo,
     Expression<DateTime>? workOrderDate,
     Expression<String>? consignmentName,
+    Expression<String>? lotNo,
+    Expression<String>? storeName,
+    Expression<double>? dMeterBox,
+    Expression<double>? mdNpvAmount,
+    Expression<double>? emptyOilDrum,
+    Expression<String>? dMeterBoxStatus,
+    Expression<DateTime>? dMeterBoxReleasedDate,
+    Expression<String>? mdNpvStatus,
+    Expression<DateTime>? mdNpvReleasedDate,
+    Expression<String>? emptyOilDrumStatus,
+    Expression<DateTime>? emptyOilDrumReleasedDate,
+    Expression<String>? dMeterBoxRemark,
+    Expression<String>? mdNpvRemark,
+    Expression<String>? emptyOilDrumRemark,
     Expression<String>? invoiceType,
     Expression<String>? proofPath,
     Expression<String>? remarks,
@@ -3376,6 +4048,24 @@ class BillsCompanion extends UpdateCompanion<Bill> {
       if (workOrderNo != null) 'work_order_no': workOrderNo,
       if (workOrderDate != null) 'work_order_date': workOrderDate,
       if (consignmentName != null) 'consignment_name': consignmentName,
+      if (lotNo != null) 'lot_no': lotNo,
+      if (storeName != null) 'store_name': storeName,
+      if (dMeterBox != null) 'd_meter_box': dMeterBox,
+      if (mdNpvAmount != null) 'md_npv_amount': mdNpvAmount,
+      if (emptyOilDrum != null) 'empty_oil_drum': emptyOilDrum,
+      if (dMeterBoxStatus != null) 'd_meter_box_status': dMeterBoxStatus,
+      if (dMeterBoxReleasedDate != null)
+        'd_meter_box_released_date': dMeterBoxReleasedDate,
+      if (mdNpvStatus != null) 'md_npv_status': mdNpvStatus,
+      if (mdNpvReleasedDate != null) 'md_npv_released_date': mdNpvReleasedDate,
+      if (emptyOilDrumStatus != null)
+        'empty_oil_drum_status': emptyOilDrumStatus,
+      if (emptyOilDrumReleasedDate != null)
+        'empty_oil_drum_released_date': emptyOilDrumReleasedDate,
+      if (dMeterBoxRemark != null) 'd_meter_box_remark': dMeterBoxRemark,
+      if (mdNpvRemark != null) 'md_npv_remark': mdNpvRemark,
+      if (emptyOilDrumRemark != null)
+        'empty_oil_drum_remark': emptyOilDrumRemark,
       if (invoiceType != null) 'invoice_type': invoiceType,
       if (proofPath != null) 'proof_path': proofPath,
       if (remarks != null) 'remarks': remarks,
@@ -3421,6 +4111,20 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     Value<String?>? workOrderNo,
     Value<DateTime?>? workOrderDate,
     Value<String?>? consignmentName,
+    Value<String?>? lotNo,
+    Value<String?>? storeName,
+    Value<double>? dMeterBox,
+    Value<double>? mdNpvAmount,
+    Value<double>? emptyOilDrum,
+    Value<String>? dMeterBoxStatus,
+    Value<DateTime?>? dMeterBoxReleasedDate,
+    Value<String>? mdNpvStatus,
+    Value<DateTime?>? mdNpvReleasedDate,
+    Value<String>? emptyOilDrumStatus,
+    Value<DateTime?>? emptyOilDrumReleasedDate,
+    Value<String?>? dMeterBoxRemark,
+    Value<String?>? mdNpvRemark,
+    Value<String?>? emptyOilDrumRemark,
     Value<String?>? invoiceType,
     Value<String?>? proofPath,
     Value<String?>? remarks,
@@ -3464,6 +4168,22 @@ class BillsCompanion extends UpdateCompanion<Bill> {
       workOrderNo: workOrderNo ?? this.workOrderNo,
       workOrderDate: workOrderDate ?? this.workOrderDate,
       consignmentName: consignmentName ?? this.consignmentName,
+      lotNo: lotNo ?? this.lotNo,
+      storeName: storeName ?? this.storeName,
+      dMeterBox: dMeterBox ?? this.dMeterBox,
+      mdNpvAmount: mdNpvAmount ?? this.mdNpvAmount,
+      emptyOilDrum: emptyOilDrum ?? this.emptyOilDrum,
+      dMeterBoxStatus: dMeterBoxStatus ?? this.dMeterBoxStatus,
+      dMeterBoxReleasedDate:
+          dMeterBoxReleasedDate ?? this.dMeterBoxReleasedDate,
+      mdNpvStatus: mdNpvStatus ?? this.mdNpvStatus,
+      mdNpvReleasedDate: mdNpvReleasedDate ?? this.mdNpvReleasedDate,
+      emptyOilDrumStatus: emptyOilDrumStatus ?? this.emptyOilDrumStatus,
+      emptyOilDrumReleasedDate:
+          emptyOilDrumReleasedDate ?? this.emptyOilDrumReleasedDate,
+      dMeterBoxRemark: dMeterBoxRemark ?? this.dMeterBoxRemark,
+      mdNpvRemark: mdNpvRemark ?? this.mdNpvRemark,
+      emptyOilDrumRemark: emptyOilDrumRemark ?? this.emptyOilDrumRemark,
       invoiceType: invoiceType ?? this.invoiceType,
       proofPath: proofPath ?? this.proofPath,
       remarks: remarks ?? this.remarks,
@@ -3583,6 +4303,52 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     if (consignmentName.present) {
       map['consignment_name'] = Variable<String>(consignmentName.value);
     }
+    if (lotNo.present) {
+      map['lot_no'] = Variable<String>(lotNo.value);
+    }
+    if (storeName.present) {
+      map['store_name'] = Variable<String>(storeName.value);
+    }
+    if (dMeterBox.present) {
+      map['d_meter_box'] = Variable<double>(dMeterBox.value);
+    }
+    if (mdNpvAmount.present) {
+      map['md_npv_amount'] = Variable<double>(mdNpvAmount.value);
+    }
+    if (emptyOilDrum.present) {
+      map['empty_oil_drum'] = Variable<double>(emptyOilDrum.value);
+    }
+    if (dMeterBoxStatus.present) {
+      map['d_meter_box_status'] = Variable<String>(dMeterBoxStatus.value);
+    }
+    if (dMeterBoxReleasedDate.present) {
+      map['d_meter_box_released_date'] = Variable<DateTime>(
+        dMeterBoxReleasedDate.value,
+      );
+    }
+    if (mdNpvStatus.present) {
+      map['md_npv_status'] = Variable<String>(mdNpvStatus.value);
+    }
+    if (mdNpvReleasedDate.present) {
+      map['md_npv_released_date'] = Variable<DateTime>(mdNpvReleasedDate.value);
+    }
+    if (emptyOilDrumStatus.present) {
+      map['empty_oil_drum_status'] = Variable<String>(emptyOilDrumStatus.value);
+    }
+    if (emptyOilDrumReleasedDate.present) {
+      map['empty_oil_drum_released_date'] = Variable<DateTime>(
+        emptyOilDrumReleasedDate.value,
+      );
+    }
+    if (dMeterBoxRemark.present) {
+      map['d_meter_box_remark'] = Variable<String>(dMeterBoxRemark.value);
+    }
+    if (mdNpvRemark.present) {
+      map['md_npv_remark'] = Variable<String>(mdNpvRemark.value);
+    }
+    if (emptyOilDrumRemark.present) {
+      map['empty_oil_drum_remark'] = Variable<String>(emptyOilDrumRemark.value);
+    }
     if (invoiceType.present) {
       map['invoice_type'] = Variable<String>(invoiceType.value);
     }
@@ -3640,6 +4406,20 @@ class BillsCompanion extends UpdateCompanion<Bill> {
           ..write('workOrderNo: $workOrderNo, ')
           ..write('workOrderDate: $workOrderDate, ')
           ..write('consignmentName: $consignmentName, ')
+          ..write('lotNo: $lotNo, ')
+          ..write('storeName: $storeName, ')
+          ..write('dMeterBox: $dMeterBox, ')
+          ..write('mdNpvAmount: $mdNpvAmount, ')
+          ..write('emptyOilDrum: $emptyOilDrum, ')
+          ..write('dMeterBoxStatus: $dMeterBoxStatus, ')
+          ..write('dMeterBoxReleasedDate: $dMeterBoxReleasedDate, ')
+          ..write('mdNpvStatus: $mdNpvStatus, ')
+          ..write('mdNpvReleasedDate: $mdNpvReleasedDate, ')
+          ..write('emptyOilDrumStatus: $emptyOilDrumStatus, ')
+          ..write('emptyOilDrumReleasedDate: $emptyOilDrumReleasedDate, ')
+          ..write('dMeterBoxRemark: $dMeterBoxRemark, ')
+          ..write('mdNpvRemark: $mdNpvRemark, ')
+          ..write('emptyOilDrumRemark: $emptyOilDrumRemark, ')
           ..write('invoiceType: $invoiceType, ')
           ..write('proofPath: $proofPath, ')
           ..write('remarks: $remarks, ')
@@ -5813,6 +6593,20 @@ typedef $$BillsTableCreateCompanionBuilder =
       Value<String?> workOrderNo,
       Value<DateTime?> workOrderDate,
       Value<String?> consignmentName,
+      Value<String?> lotNo,
+      Value<String?> storeName,
+      Value<double> dMeterBox,
+      Value<double> mdNpvAmount,
+      Value<double> emptyOilDrum,
+      Value<String> dMeterBoxStatus,
+      Value<DateTime?> dMeterBoxReleasedDate,
+      Value<String> mdNpvStatus,
+      Value<DateTime?> mdNpvReleasedDate,
+      Value<String> emptyOilDrumStatus,
+      Value<DateTime?> emptyOilDrumReleasedDate,
+      Value<String?> dMeterBoxRemark,
+      Value<String?> mdNpvRemark,
+      Value<String?> emptyOilDrumRemark,
       Value<String?> invoiceType,
       Value<String?> proofPath,
       Value<String?> remarks,
@@ -5857,6 +6651,20 @@ typedef $$BillsTableUpdateCompanionBuilder =
       Value<String?> workOrderNo,
       Value<DateTime?> workOrderDate,
       Value<String?> consignmentName,
+      Value<String?> lotNo,
+      Value<String?> storeName,
+      Value<double> dMeterBox,
+      Value<double> mdNpvAmount,
+      Value<double> emptyOilDrum,
+      Value<String> dMeterBoxStatus,
+      Value<DateTime?> dMeterBoxReleasedDate,
+      Value<String> mdNpvStatus,
+      Value<DateTime?> mdNpvReleasedDate,
+      Value<String> emptyOilDrumStatus,
+      Value<DateTime?> emptyOilDrumReleasedDate,
+      Value<String?> dMeterBoxRemark,
+      Value<String?> mdNpvRemark,
+      Value<String?> emptyOilDrumRemark,
       Value<String?> invoiceType,
       Value<String?> proofPath,
       Value<String?> remarks,
@@ -6123,6 +6931,76 @@ class $$BillsTableFilterComposer extends Composer<_$AppDatabase, $BillsTable> {
 
   ColumnFilters<String> get consignmentName => $composableBuilder(
     column: $table.consignmentName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get lotNo => $composableBuilder(
+    column: $table.lotNo,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get storeName => $composableBuilder(
+    column: $table.storeName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get dMeterBox => $composableBuilder(
+    column: $table.dMeterBox,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get mdNpvAmount => $composableBuilder(
+    column: $table.mdNpvAmount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get emptyOilDrum => $composableBuilder(
+    column: $table.emptyOilDrum,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dMeterBoxStatus => $composableBuilder(
+    column: $table.dMeterBoxStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dMeterBoxReleasedDate => $composableBuilder(
+    column: $table.dMeterBoxReleasedDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mdNpvStatus => $composableBuilder(
+    column: $table.mdNpvStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get mdNpvReleasedDate => $composableBuilder(
+    column: $table.mdNpvReleasedDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get emptyOilDrumStatus => $composableBuilder(
+    column: $table.emptyOilDrumStatus,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get emptyOilDrumReleasedDate => $composableBuilder(
+    column: $table.emptyOilDrumReleasedDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get dMeterBoxRemark => $composableBuilder(
+    column: $table.dMeterBoxRemark,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mdNpvRemark => $composableBuilder(
+    column: $table.mdNpvRemark,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get emptyOilDrumRemark => $composableBuilder(
+    column: $table.emptyOilDrumRemark,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -6438,6 +7316,76 @@ class $$BillsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get lotNo => $composableBuilder(
+    column: $table.lotNo,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get storeName => $composableBuilder(
+    column: $table.storeName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get dMeterBox => $composableBuilder(
+    column: $table.dMeterBox,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get mdNpvAmount => $composableBuilder(
+    column: $table.mdNpvAmount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get emptyOilDrum => $composableBuilder(
+    column: $table.emptyOilDrum,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dMeterBoxStatus => $composableBuilder(
+    column: $table.dMeterBoxStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get dMeterBoxReleasedDate => $composableBuilder(
+    column: $table.dMeterBoxReleasedDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mdNpvStatus => $composableBuilder(
+    column: $table.mdNpvStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get mdNpvReleasedDate => $composableBuilder(
+    column: $table.mdNpvReleasedDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get emptyOilDrumStatus => $composableBuilder(
+    column: $table.emptyOilDrumStatus,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get emptyOilDrumReleasedDate => $composableBuilder(
+    column: $table.emptyOilDrumReleasedDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get dMeterBoxRemark => $composableBuilder(
+    column: $table.dMeterBoxRemark,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mdNpvRemark => $composableBuilder(
+    column: $table.mdNpvRemark,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get emptyOilDrumRemark => $composableBuilder(
+    column: $table.emptyOilDrumRemark,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get invoiceType => $composableBuilder(
     column: $table.invoiceType,
     builder: (column) => ColumnOrderings(column),
@@ -6697,6 +7645,70 @@ class $$BillsTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<String> get lotNo =>
+      $composableBuilder(column: $table.lotNo, builder: (column) => column);
+
+  GeneratedColumn<String> get storeName =>
+      $composableBuilder(column: $table.storeName, builder: (column) => column);
+
+  GeneratedColumn<double> get dMeterBox =>
+      $composableBuilder(column: $table.dMeterBox, builder: (column) => column);
+
+  GeneratedColumn<double> get mdNpvAmount => $composableBuilder(
+    column: $table.mdNpvAmount,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<double> get emptyOilDrum => $composableBuilder(
+    column: $table.emptyOilDrum,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get dMeterBoxStatus => $composableBuilder(
+    column: $table.dMeterBoxStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get dMeterBoxReleasedDate => $composableBuilder(
+    column: $table.dMeterBoxReleasedDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get mdNpvStatus => $composableBuilder(
+    column: $table.mdNpvStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get mdNpvReleasedDate => $composableBuilder(
+    column: $table.mdNpvReleasedDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get emptyOilDrumStatus => $composableBuilder(
+    column: $table.emptyOilDrumStatus,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get emptyOilDrumReleasedDate => $composableBuilder(
+    column: $table.emptyOilDrumReleasedDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get dMeterBoxRemark => $composableBuilder(
+    column: $table.dMeterBoxRemark,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get mdNpvRemark => $composableBuilder(
+    column: $table.mdNpvRemark,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get emptyOilDrumRemark => $composableBuilder(
+    column: $table.emptyOilDrumRemark,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get invoiceType => $composableBuilder(
     column: $table.invoiceType,
     builder: (column) => column,
@@ -6902,6 +7914,21 @@ class $$BillsTableTableManager
                 Value<String?> workOrderNo = const Value.absent(),
                 Value<DateTime?> workOrderDate = const Value.absent(),
                 Value<String?> consignmentName = const Value.absent(),
+                Value<String?> lotNo = const Value.absent(),
+                Value<String?> storeName = const Value.absent(),
+                Value<double> dMeterBox = const Value.absent(),
+                Value<double> mdNpvAmount = const Value.absent(),
+                Value<double> emptyOilDrum = const Value.absent(),
+                Value<String> dMeterBoxStatus = const Value.absent(),
+                Value<DateTime?> dMeterBoxReleasedDate = const Value.absent(),
+                Value<String> mdNpvStatus = const Value.absent(),
+                Value<DateTime?> mdNpvReleasedDate = const Value.absent(),
+                Value<String> emptyOilDrumStatus = const Value.absent(),
+                Value<DateTime?> emptyOilDrumReleasedDate =
+                    const Value.absent(),
+                Value<String?> dMeterBoxRemark = const Value.absent(),
+                Value<String?> mdNpvRemark = const Value.absent(),
+                Value<String?> emptyOilDrumRemark = const Value.absent(),
                 Value<String?> invoiceType = const Value.absent(),
                 Value<String?> proofPath = const Value.absent(),
                 Value<String?> remarks = const Value.absent(),
@@ -6944,6 +7971,20 @@ class $$BillsTableTableManager
                 workOrderNo: workOrderNo,
                 workOrderDate: workOrderDate,
                 consignmentName: consignmentName,
+                lotNo: lotNo,
+                storeName: storeName,
+                dMeterBox: dMeterBox,
+                mdNpvAmount: mdNpvAmount,
+                emptyOilDrum: emptyOilDrum,
+                dMeterBoxStatus: dMeterBoxStatus,
+                dMeterBoxReleasedDate: dMeterBoxReleasedDate,
+                mdNpvStatus: mdNpvStatus,
+                mdNpvReleasedDate: mdNpvReleasedDate,
+                emptyOilDrumStatus: emptyOilDrumStatus,
+                emptyOilDrumReleasedDate: emptyOilDrumReleasedDate,
+                dMeterBoxRemark: dMeterBoxRemark,
+                mdNpvRemark: mdNpvRemark,
+                emptyOilDrumRemark: emptyOilDrumRemark,
                 invoiceType: invoiceType,
                 proofPath: proofPath,
                 remarks: remarks,
@@ -6988,6 +8029,21 @@ class $$BillsTableTableManager
                 Value<String?> workOrderNo = const Value.absent(),
                 Value<DateTime?> workOrderDate = const Value.absent(),
                 Value<String?> consignmentName = const Value.absent(),
+                Value<String?> lotNo = const Value.absent(),
+                Value<String?> storeName = const Value.absent(),
+                Value<double> dMeterBox = const Value.absent(),
+                Value<double> mdNpvAmount = const Value.absent(),
+                Value<double> emptyOilDrum = const Value.absent(),
+                Value<String> dMeterBoxStatus = const Value.absent(),
+                Value<DateTime?> dMeterBoxReleasedDate = const Value.absent(),
+                Value<String> mdNpvStatus = const Value.absent(),
+                Value<DateTime?> mdNpvReleasedDate = const Value.absent(),
+                Value<String> emptyOilDrumStatus = const Value.absent(),
+                Value<DateTime?> emptyOilDrumReleasedDate =
+                    const Value.absent(),
+                Value<String?> dMeterBoxRemark = const Value.absent(),
+                Value<String?> mdNpvRemark = const Value.absent(),
+                Value<String?> emptyOilDrumRemark = const Value.absent(),
                 Value<String?> invoiceType = const Value.absent(),
                 Value<String?> proofPath = const Value.absent(),
                 Value<String?> remarks = const Value.absent(),
@@ -7030,6 +8086,20 @@ class $$BillsTableTableManager
                 workOrderNo: workOrderNo,
                 workOrderDate: workOrderDate,
                 consignmentName: consignmentName,
+                lotNo: lotNo,
+                storeName: storeName,
+                dMeterBox: dMeterBox,
+                mdNpvAmount: mdNpvAmount,
+                emptyOilDrum: emptyOilDrum,
+                dMeterBoxStatus: dMeterBoxStatus,
+                dMeterBoxReleasedDate: dMeterBoxReleasedDate,
+                mdNpvStatus: mdNpvStatus,
+                mdNpvReleasedDate: mdNpvReleasedDate,
+                emptyOilDrumStatus: emptyOilDrumStatus,
+                emptyOilDrumReleasedDate: emptyOilDrumReleasedDate,
+                dMeterBoxRemark: dMeterBoxRemark,
+                mdNpvRemark: mdNpvRemark,
+                emptyOilDrumRemark: emptyOilDrumRemark,
                 invoiceType: invoiceType,
                 proofPath: proofPath,
                 remarks: remarks,

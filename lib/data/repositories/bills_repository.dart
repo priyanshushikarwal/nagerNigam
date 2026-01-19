@@ -47,6 +47,20 @@ class BillsDao {
       b.work_order_no,
       b.work_order_date,
       b.consignment_name,
+      b.lot_no,
+      b.store_name,
+      b.d_meter_box,
+      b.md_npv_amount,
+      b.empty_oil_drum,
+      b.d_meter_box_status,
+      b.d_meter_box_released_date,
+      b.md_npv_status,
+      b.md_npv_released_date,
+      b.empty_oil_drum_status,
+      b.empty_oil_drum_released_date,
+      b.d_meter_box_remark,
+      b.md_npv_remark,
+      b.empty_oil_drum_remark,
       b.invoice_type,
       b.proof_path,
       b.created_at,
@@ -329,6 +343,72 @@ class BillsDao {
     );
   }
 
+  Future<void> updateDMeterBoxStatus(int billId, String status) async {
+    await (_database.update(_database.bills)
+      ..where((tbl) => tbl.id.equals(billId))).write(
+      db.BillsCompanion(
+        dMeterBoxStatus: Value(status),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> updateDMeterBoxReleasedDate(
+    int billId,
+    DateTime releaseDate,
+  ) async {
+    await (_database.update(_database.bills)
+      ..where((tbl) => tbl.id.equals(billId))).write(
+      db.BillsCompanion(
+        dMeterBoxReleasedDate: Value(releaseDate),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> updateMdNpvStatus(int billId, String status) async {
+    await (_database.update(_database.bills)
+      ..where((tbl) => tbl.id.equals(billId))).write(
+      db.BillsCompanion(
+        mdNpvStatus: Value(status),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> updateMdNpvReleasedDate(int billId, DateTime releaseDate) async {
+    await (_database.update(_database.bills)
+      ..where((tbl) => tbl.id.equals(billId))).write(
+      db.BillsCompanion(
+        mdNpvReleasedDate: Value(releaseDate),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> updateEmptyOilDrumStatus(int billId, String status) async {
+    await (_database.update(_database.bills)
+      ..where((tbl) => tbl.id.equals(billId))).write(
+      db.BillsCompanion(
+        emptyOilDrumStatus: Value(status),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> updateEmptyOilDrumReleasedDate(
+    int billId,
+    DateTime releaseDate,
+  ) async {
+    await (_database.update(_database.bills)
+      ..where((tbl) => tbl.id.equals(billId))).write(
+      db.BillsCompanion(
+        emptyOilDrumReleasedDate: Value(releaseDate),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   Future<List<Bill>> _fetchBills({
     required String whereClause,
     required List<Variable> variables,
@@ -444,6 +524,26 @@ class BillsDao {
       workOrderNo: row.readNullable<String>('work_order_no'),
       workOrderDate: row.readNullable<DateTime>('work_order_date'),
       consignmentName: row.readNullable<String>('consignment_name'),
+      lotNo: row.readNullable<String>('lot_no'),
+      storeName: row.readNullable<String>('store_name'),
+      dMeterBox: row.readNullable<double>('d_meter_box') ?? 0,
+      mdNpvAmount: row.readNullable<double>('md_npv_amount') ?? 0,
+      emptyOilDrum: row.readNullable<double>('empty_oil_drum') ?? 0,
+      dMeterBoxStatus:
+          row.readNullable<String>('d_meter_box_status') ?? 'Pending',
+      dMeterBoxReleasedDate: row.readNullable<DateTime>(
+        'd_meter_box_released_date',
+      ),
+      mdNpvStatus: row.readNullable<String>('md_npv_status') ?? 'Pending',
+      mdNpvReleasedDate: row.readNullable<DateTime>('md_npv_released_date'),
+      emptyOilDrumStatus:
+          row.readNullable<String>('empty_oil_drum_status') ?? 'Pending',
+      emptyOilDrumReleasedDate: row.readNullable<DateTime>(
+        'empty_oil_drum_released_date',
+      ),
+      dMeterBoxRemark: row.readNullable<String>('d_meter_box_remark'),
+      mdNpvRemark: row.readNullable<String>('md_npv_remark'),
+      emptyOilDrumRemark: row.readNullable<String>('empty_oil_drum_remark'),
       invoiceType: row.readNullable<String>('invoice_type'),
       proofPath: row.readNullable<String>('proof_path'),
       createdAt: row.read<DateTime>('created_at'),
@@ -528,6 +628,41 @@ class BillsDao {
       consignmentName:
           bill.consignmentName != null
               ? Value(bill.consignmentName!)
+              : const Value.absent(),
+      lotNo: bill.lotNo != null ? Value(bill.lotNo!) : const Value.absent(),
+      storeName:
+          bill.storeName != null
+              ? Value(bill.storeName!)
+              : const Value.absent(),
+      dMeterBox: Value(bill.dMeterBox),
+      mdNpvAmount: Value(bill.mdNpvAmount),
+      emptyOilDrum: Value(bill.emptyOilDrum),
+      dMeterBoxStatus: Value(bill.dMeterBoxStatus),
+      dMeterBoxReleasedDate:
+          bill.dMeterBoxReleasedDate != null
+              ? Value(bill.dMeterBoxReleasedDate!)
+              : const Value.absent(),
+      mdNpvStatus: Value(bill.mdNpvStatus),
+      mdNpvReleasedDate:
+          bill.mdNpvReleasedDate != null
+              ? Value(bill.mdNpvReleasedDate!)
+              : const Value.absent(),
+      emptyOilDrumStatus: Value(bill.emptyOilDrumStatus),
+      emptyOilDrumReleasedDate:
+          bill.emptyOilDrumReleasedDate != null
+              ? Value(bill.emptyOilDrumReleasedDate!)
+              : const Value.absent(),
+      dMeterBoxRemark:
+          bill.dMeterBoxRemark != null
+              ? Value(bill.dMeterBoxRemark!)
+              : const Value.absent(),
+      mdNpvRemark:
+          bill.mdNpvRemark != null
+              ? Value(bill.mdNpvRemark!)
+              : const Value.absent(),
+      emptyOilDrumRemark:
+          bill.emptyOilDrumRemark != null
+              ? Value(bill.emptyOilDrumRemark!)
               : const Value.absent(),
       invoiceType:
           bill.invoiceType != null

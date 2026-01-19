@@ -1,5 +1,6 @@
 import 'package:fluent_ui/fluent_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import '../models/bill.dart';
 import '../models/tender.dart';
@@ -8,6 +9,7 @@ import '../state/database_providers.dart';
 import '../state/firm_providers.dart';
 import '../state/tender_providers.dart';
 import 'tender_form_dialog.dart';
+import 'pv_bill_selector_dialog.dart';
 
 class ComprehensiveBillFormDialog extends ConsumerStatefulWidget {
   final Bill? bill;
@@ -47,6 +49,23 @@ class _ComprehensiveBillFormDialogState
   late TextEditingController _invoiceNoController;
   late TextEditingController _workOrderNoController;
   late TextEditingController _consignmentNameController;
+  // Date manual entry controllers (auto-format ddmmyyyy -> dd-MM-yyyy)
+  late TextEditingController _rrDateController;
+  late TextEditingController _workOrderDateController;
+  late TextEditingController _invoiceDateController;
+  late TextEditingController _dueDateController;
+  late TextEditingController _csdDueDateController;
+  late TextEditingController _csdReleasedDateController;
+  late TextEditingController _paidDateController;
+  // New fields controllers
+  late TextEditingController _lotNoController;
+  late TextEditingController _storeNameController;
+  late TextEditingController _dMeterBoxController;
+  late TextEditingController _mdNpvAmountController;
+  late TextEditingController _emptyOilDrumController;
+  late TextEditingController _dMeterBoxRemarkController;
+  late TextEditingController _mdNpvRemarkController;
+  late TextEditingController _emptyOilDrumRemarkController;
 
   // Date fields
   DateTime _billDate = DateTime.now();
@@ -67,6 +86,7 @@ class _ComprehensiveBillFormDialogState
   Tender? _selectedTender;
   int? _selectedClientFirmId;
   String? _invoiceType; // 'JOB Invoice' or 'PV Invoice'
+  List<Bill> _combinedBills = []; // Bills selected for PV invoice
 
   @override
   void initState() {
@@ -129,23 +149,85 @@ class _ComprehensiveBillFormDialogState
     _consignmentNameController = TextEditingController(
       text: widget.bill?.consignmentName ?? '',
     );
+    // New fields controllers
+    _lotNoController = TextEditingController(text: widget.bill?.lotNo ?? '');
+    _storeNameController = TextEditingController(
+      text: widget.bill?.storeName ?? '',
+    );
+    _dMeterBoxController = TextEditingController(
+      text: widget.bill?.dMeterBox.toStringAsFixed(2) ?? '0.00',
+    );
+    _mdNpvAmountController = TextEditingController(
+      text: widget.bill?.mdNpvAmount.toStringAsFixed(2) ?? '0.00',
+    );
+    _emptyOilDrumController = TextEditingController(
+      text: widget.bill?.emptyOilDrum.toStringAsFixed(2) ?? '0.00',
+    );
+    _dMeterBoxRemarkController = TextEditingController(
+      text: widget.bill?.dMeterBoxRemark ?? '',
+    );
+    _mdNpvRemarkController = TextEditingController(
+      text: widget.bill?.mdNpvRemark ?? '',
+    );
+    _emptyOilDrumRemarkController = TextEditingController(
+      text: widget.bill?.emptyOilDrumRemark ?? '',
+    );
+
+    // Date format for manual entry
+    final dateFormat = DateFormat('dd-MM-yyyy');
 
     if (widget.bill != null) {
       _billDate = widget.bill!.billDate;
+      _rrDateController = TextEditingController(
+        text: dateFormat.format(widget.bill!.billDate),
+      );
       _dueDate = widget.bill!.dueDate;
+      _dueDateController = TextEditingController(
+        text: dateFormat.format(widget.bill!.dueDate),
+      );
       _csdReleasedDate = widget.bill!.csdReleasedDate;
+      _csdReleasedDateController = TextEditingController(
+        text:
+            _csdReleasedDate != null
+                ? dateFormat.format(_csdReleasedDate!)
+                : '',
+      );
       _csdDueDate = widget.bill!.csdDueDate;
+      _csdDueDateController = TextEditingController(
+        text: _csdDueDate != null ? dateFormat.format(_csdDueDate!) : '',
+      );
       _paidDate = widget.bill!.paidDate;
+      _paidDateController = TextEditingController(
+        text: _paidDate != null ? dateFormat.format(_paidDate!) : '',
+      );
       _dueReleaseDate = widget.bill!.dueReleaseDate;
       _invoiceDate = widget.bill!.invoiceDate;
+      _invoiceDateController = TextEditingController(
+        text: _invoiceDate != null ? dateFormat.format(_invoiceDate!) : '',
+      );
       _workOrderDate = widget.bill!.workOrderDate;
+      _workOrderDateController = TextEditingController(
+        text: _workOrderDate != null ? dateFormat.format(_workOrderDate!) : '',
+      );
       _proofPath = widget.bill!.proofPath;
       _invoiceType = widget.bill!.invoiceType;
     } else {
       // For new bills, set default due date to 45 days from today
       final today = DateTime.now();
+      _billDate = today;
+      _rrDateController = TextEditingController(text: '');
       _invoiceDate = today;
+      _invoiceDateController = TextEditingController(
+        text: dateFormat.format(today),
+      );
       _dueDate = today.add(const Duration(days: 45));
+      _dueDateController = TextEditingController(
+        text: dateFormat.format(_dueDate),
+      );
+      _workOrderDateController = TextEditingController(text: '');
+      _csdDueDateController = TextEditingController(text: '');
+      _csdReleasedDateController = TextEditingController(text: '');
+      _paidDateController = TextEditingController(text: '');
     }
   }
 
@@ -197,7 +279,102 @@ class _ComprehensiveBillFormDialogState
     _invoiceNoController.dispose();
     _workOrderNoController.dispose();
     _consignmentNameController.dispose();
+    _rrDateController.dispose();
+    _workOrderDateController.dispose();
+    _invoiceDateController.dispose();
+    _dueDateController.dispose();
+    _csdDueDateController.dispose();
+    _csdReleasedDateController.dispose();
+    _paidDateController.dispose();
+    _lotNoController.dispose();
+    _storeNameController.dispose();
+    _dMeterBoxController.dispose();
+    _mdNpvAmountController.dispose();
+    _emptyOilDrumController.dispose();
+    _dMeterBoxRemarkController.dispose();
+    _mdNpvRemarkController.dispose();
+    _emptyOilDrumRemarkController.dispose();
     super.dispose();
+  }
+
+  /// Populates form fields from combined bills for PV invoice
+  void _populateFromCombinedBills(List<Bill> bills) {
+    if (bills.isEmpty) return;
+
+    // Calculate combined totals
+    double totalInvoiceAmount = 0;
+    double totalBillPassAmount = 0;
+    double totalCsdAmount = 0;
+    double totalMdLdAmount = 0;
+    double totalTdsAmount = 0;
+    double totalTcsAmount = 0;
+    double totalGstTdsAmount = 0;
+    double totalScrapAmount = 0;
+    double totalScrapGstAmount = 0;
+    double totalDMeterBox = 0;
+    double totalMdNpvAmount = 0;
+    double totalEmptyOilDrum = 0;
+
+    for (final bill in bills) {
+      totalInvoiceAmount += bill.invoiceAmount;
+      totalBillPassAmount += bill.billPassAmount;
+      totalCsdAmount += bill.csdAmount;
+      totalMdLdAmount += bill.mdLdAmount;
+      totalTdsAmount += bill.tdsAmount;
+      totalTcsAmount += bill.tcsAmount;
+      totalGstTdsAmount += bill.gstTdsAmount;
+      totalScrapAmount += bill.scrapAmount;
+      totalScrapGstAmount += bill.scrapGstAmount;
+      totalDMeterBox += bill.dMeterBox;
+      totalMdNpvAmount += bill.mdNpvAmount;
+      totalEmptyOilDrum += bill.emptyOilDrum;
+    }
+
+    // Build combined invoice numbers
+    final invoiceNos = bills
+        .where((b) => b.invoiceNo != null && b.invoiceNo!.isNotEmpty)
+        .map((b) => b.invoiceNo)
+        .join(', ');
+
+    // Build combined lot numbers
+    final lotNos = bills
+        .where((b) => b.lotNo != null && b.lotNo!.isNotEmpty)
+        .map((b) => b.lotNo)
+        .toSet() // Remove duplicates
+        .join(', ');
+
+    setState(() {
+      _invoiceType = 'PV Invoice';
+      _combinedBills = bills;
+
+      // Populate controllers with combined values
+      _invoiceAmountController.text = totalInvoiceAmount.toStringAsFixed(2);
+      _billPassAmountController.text = totalBillPassAmount.toStringAsFixed(2);
+      _csdAmountController.text = totalCsdAmount.toStringAsFixed(2);
+      _mdLdAmountController.text = totalMdLdAmount.toStringAsFixed(2);
+      _tdsAmountController.text = totalTdsAmount.toStringAsFixed(2);
+      _tcsAmountController.text = totalTcsAmount.toStringAsFixed(2);
+      _gstTdsAmountController.text = totalGstTdsAmount.toStringAsFixed(2);
+      _scrapAmountController.text = totalScrapAmount.toStringAsFixed(2);
+      _scrapGstAmountController.text = totalScrapGstAmount.toStringAsFixed(2);
+      _dMeterBoxController.text = totalDMeterBox.toStringAsFixed(2);
+      _mdNpvAmountController.text = totalMdNpvAmount.toStringAsFixed(2);
+      _emptyOilDrumController.text = totalEmptyOilDrum.toStringAsFixed(2);
+
+      // Set combined invoice number reference
+      if (invoiceNos.isNotEmpty) {
+        _invoiceNoController.text = 'PV-$invoiceNos';
+      }
+
+      // Set combined lot numbers
+      if (lotNos.isNotEmpty) {
+        _lotNoController.text = lotNos;
+      }
+
+      // Set remarks indicating this is a combined PV invoice
+      _remarksController.text =
+          'PV Invoice combining ${bills.length} bills: $invoiceNos';
+    });
   }
 
   Future<void> _handleSubmit() async {
@@ -224,6 +401,20 @@ class _ComprehensiveBillFormDialogState
     final workOrderNo = _workOrderNoController.text.trim();
     if (workOrderNo.isEmpty) {
       _showValidationError('Work Order No is required');
+      return;
+    }
+
+    // Validate RR Date (required)
+    final rrDateText = _rrDateController.text.trim();
+    if (rrDateText.isEmpty) {
+      _showValidationError('RR Date is required');
+      return;
+    }
+    try {
+      final dateFormat = DateFormat('dd-MM-yyyy');
+      _billDate = dateFormat.parseStrict(rrDateText);
+    } catch (_) {
+      _showValidationError('RR Date must be in dd-MM-yyyy format');
       return;
     }
 
@@ -255,7 +446,7 @@ class _ComprehensiveBillFormDialogState
         csdAmount: double.tryParse(_csdAmountController.text) ?? 0,
         csdReleasedDate: _csdReleasedDate,
         csdDueDate: _csdDueDate,
-        csdStatus: _csdReleasedDate != null ? 'Released' : 'Pending',
+        csdStatus: widget.bill?.csdStatus ?? 'Pending',
         scrapAmount: double.tryParse(_scrapAmountController.text) ?? 0,
         scrapGstAmount: double.tryParse(_scrapGstAmountController.text) ?? 0,
         mdLdAmount: double.tryParse(_mdLdAmountController.text) ?? 0,
@@ -284,6 +475,29 @@ class _ComprehensiveBillFormDialogState
             _consignmentNameController.text.trim().isEmpty
                 ? null
                 : _consignmentNameController.text.trim(),
+        lotNo:
+            _lotNoController.text.trim().isEmpty
+                ? null
+                : _lotNoController.text.trim(),
+        storeName:
+            _storeNameController.text.trim().isEmpty
+                ? null
+                : _storeNameController.text.trim(),
+        dMeterBox: double.tryParse(_dMeterBoxController.text) ?? 0,
+        mdNpvAmount: double.tryParse(_mdNpvAmountController.text) ?? 0,
+        emptyOilDrum: double.tryParse(_emptyOilDrumController.text) ?? 0,
+        dMeterBoxRemark:
+            _dMeterBoxRemarkController.text.trim().isEmpty
+                ? null
+                : _dMeterBoxRemarkController.text.trim(),
+        mdNpvRemark:
+            _mdNpvRemarkController.text.trim().isEmpty
+                ? null
+                : _mdNpvRemarkController.text.trim(),
+        emptyOilDrumRemark:
+            _emptyOilDrumRemarkController.text.trim().isEmpty
+                ? null
+                : _emptyOilDrumRemarkController.text.trim(),
         proofPath: _proofPath,
         invoiceType: _invoiceType,
         createdAt: widget.bill?.createdAt ?? DateTime.now(),
@@ -518,22 +732,23 @@ class _ComprehensiveBillFormDialogState
           Row(
             children: [
               Expanded(
-                child: InfoLabel(
-                  label: 'Bill Date *',
-                  child: DatePicker(
-                    selected: _billDate,
-                    onChanged: (date) => setState(() => _billDate = date),
-                  ),
+                child: _buildAutoFormatDateField(
+                  label: 'RR Date',
+                  controller: _rrDateController,
+                  isRequired: true,
+                  onDateParsed: (date) {
+                    if (date != null) {
+                      setState(() => _billDate = date);
+                    }
+                  },
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: InfoLabel(
+                child: _buildAutoFormatDateField(
                   label: 'Work Order Date',
-                  child: DatePicker(
-                    selected: _workOrderDate,
-                    onChanged: (date) => setState(() => _workOrderDate = date),
-                  ),
+                  controller: _workOrderDateController,
+                  onDateParsed: (date) => setState(() => _workOrderDate = date),
                 ),
               ),
             ],
@@ -556,45 +771,226 @@ class _ComprehensiveBillFormDialogState
                         child: Text('PV Invoice'),
                       ),
                     ],
-                    onChanged: (value) {
-                      setState(() {
-                        _invoiceType = value;
-                      });
+                    onChanged: (value) async {
+                      if (value == 'PV Invoice') {
+                        // Check if tender is selected first
+                        if (_selectedTender == null) {
+                          displayInfoBar(
+                            context,
+                            builder: (context, close) {
+                              return InfoBar(
+                                title: const Text('Select Tender First'),
+                                content: const Text(
+                                  'Please select a tender before creating a PV Invoice.',
+                                ),
+                                severity: InfoBarSeverity.warning,
+                                onClose: close,
+                              );
+                            },
+                          );
+                          return;
+                        }
+
+                        // Show the PV bill selector dialog
+                        await showDialog(
+                          context: context,
+                          builder:
+                              (context) => PvBillSelectorDialog(
+                                tender: _selectedTender!,
+                                onBillsSelected: (selectedBills) {
+                                  _populateFromCombinedBills(selectedBills);
+                                },
+                              ),
+                        );
+                      } else {
+                        setState(() {
+                          _invoiceType = value;
+                          _combinedBills = [];
+                        });
+                      }
                     },
                     placeholder: const Text('Select invoice type'),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              const Expanded(child: SizedBox()), // Empty space for alignment
+              // Show combined bills info if PV Invoice
+              Expanded(
+                child:
+                    _combinedBills.isNotEmpty
+                        ? Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(
+                              color: Colors.blue.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                FluentIcons.combine,
+                                size: 16,
+                                color: Colors.blue,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${_combinedBills.length} bills combined',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue.dark,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                        : const SizedBox(),
+              ),
             ],
           ),
           const SizedBox(height: 16),
+          // Lot No and Store Name Row
           Row(
             children: [
               Expanded(
                 child: InfoLabel(
-                  label: 'Invoice Date',
-                  child: DatePicker(
-                    selected: _invoiceDate,
-                    onChanged: (date) {
-                      setState(() {
-                        _invoiceDate = date;
-                        // Auto-calculate due date as invoice date + 45 days
-                        _dueDate = date.add(const Duration(days: 45));
-                      });
-                    },
+                  label: 'Lot No',
+                  child: TextBox(
+                    controller: _lotNoController,
+                    placeholder: 'Enter lot number',
+                    enabled: !_isSubmitting,
                   ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: InfoLabel(
-                  label: 'Due Date *',
-                  child: DatePicker(
-                    selected: _dueDate,
-                    onChanged: (date) => setState(() => _dueDate = date),
+                  label: 'Store Name',
+                  child: TextBox(
+                    controller: _storeNameController,
+                    placeholder: 'Enter store name',
+                    enabled: !_isSubmitting,
                   ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // D Meter Box, MD (NPV), Empty Oil Drum Row
+          Row(
+            children: [
+              Expanded(
+                child: InfoLabel(
+                  label: 'D Meter Box (₹)',
+                  child: TextBox(
+                    controller: _dMeterBoxController,
+                    placeholder: '0.00',
+                    enabled: !_isSubmitting,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: InfoLabel(
+                  label: 'MD (NPV) (₹)',
+                  child: TextBox(
+                    controller: _mdNpvAmountController,
+                    placeholder: '0.00',
+                    enabled: !_isSubmitting,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: InfoLabel(
+                  label: 'Empty Oil Drum (₹)',
+                  child: TextBox(
+                    controller: _emptyOilDrumController,
+                    placeholder: '0.00',
+                    enabled: !_isSubmitting,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Remarks Row for D Meter Box, MD (NPV), Empty Oil Drum
+          Row(
+            children: [
+              Expanded(
+                child: InfoLabel(
+                  label: 'D Meter Box Remark',
+                  child: TextBox(
+                    controller: _dMeterBoxRemarkController,
+                    placeholder: 'Optional remark',
+                    enabled: !_isSubmitting,
+                    maxLines: 2,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: InfoLabel(
+                  label: 'MD (NPV) Remark',
+                  child: TextBox(
+                    controller: _mdNpvRemarkController,
+                    placeholder: 'Optional remark',
+                    enabled: !_isSubmitting,
+                    maxLines: 2,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: InfoLabel(
+                  label: 'Empty Oil Drum Remark',
+                  child: TextBox(
+                    controller: _emptyOilDrumRemarkController,
+                    placeholder: 'Optional remark',
+                    enabled: !_isSubmitting,
+                    maxLines: 2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildAutoFormatDateField(
+                  label: 'Invoice Date',
+                  controller: _invoiceDateController,
+                  onDateParsed: (date) {
+                    setState(() {
+                      _invoiceDate = date;
+                      // Auto-calculate due date as invoice date + 45 days
+                      if (date != null) {
+                        _dueDate = date.add(const Duration(days: 45));
+                        _dueDateController.text = DateFormat(
+                          'dd-MM-yyyy',
+                        ).format(_dueDate);
+                      }
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildAutoFormatDateField(
+                  label: 'Due Date',
+                  controller: _dueDateController,
+                  isRequired: true,
+                  onDateParsed: (date) {
+                    if (date != null) {
+                      setState(() => _dueDate = date);
+                    }
+                  },
                 ),
               ),
             ],
@@ -663,25 +1059,14 @@ class _ComprehensiveBillFormDialogState
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: InfoLabel(
+                child: _buildAutoFormatDateField(
                   label: 'CSD Due Date',
-                  child: DatePicker(
-                    selected: _csdDueDate,
-                    onChanged: (date) => setState(() => _csdDueDate = date),
-                  ),
+                  controller: _csdDueDateController,
+                  onDateParsed: (date) => setState(() => _csdDueDate = date),
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(
-                child: InfoLabel(
-                  label: 'CSD Released Date',
-                  child: DatePicker(
-                    selected: _csdReleasedDate,
-                    onChanged:
-                        (date) => setState(() => _csdReleasedDate = date),
-                  ),
-                ),
-              ),
+              const Expanded(child: SizedBox()), // Empty space for alignment
             ],
           ),
           const SizedBox(height: 16),
@@ -818,12 +1203,10 @@ class _ComprehensiveBillFormDialogState
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: InfoLabel(
+                child: _buildAutoFormatDateField(
                   label: 'Paid Date',
-                  child: DatePicker(
-                    selected: _paidDate,
-                    onChanged: (date) => setState(() => _paidDate = date),
-                  ),
+                  controller: _paidDateController,
+                  onDateParsed: (date) => setState(() => _paidDate = date),
                 ),
               ),
             ],
@@ -857,6 +1240,58 @@ class _ComprehensiveBillFormDialogState
         placeholder: 'Optional remarks',
         enabled: !_isSubmitting,
         maxLines: 3,
+      ),
+    );
+  }
+
+  /// Helper to build an auto-formatting date field
+  /// Formats: ddmmyyyy -> dd-MM-yyyy
+  Widget _buildAutoFormatDateField({
+    required String label,
+    required TextEditingController controller,
+    required void Function(DateTime?) onDateParsed,
+    bool isRequired = false,
+  }) {
+    return InfoLabel(
+      label: '$label${isRequired ? ' *' : ''} (ddmmyyyy)',
+      child: TextBox(
+        controller: controller,
+        placeholder: 'e.g. 17012026',
+        enabled: !_isSubmitting,
+        maxLength: 10,
+        onChanged: (value) {
+          // Auto-format: 20012005 -> 20-01-2005
+          final digitsOnly = value.replaceAll('-', '');
+          if (digitsOnly.length <= 8) {
+            String formatted = '';
+            for (int i = 0; i < digitsOnly.length; i++) {
+              if (i == 2 || i == 4) {
+                formatted += '-';
+              }
+              formatted += digitsOnly[i];
+            }
+            // Only update if different to avoid cursor jumping
+            if (formatted != value) {
+              controller.text = formatted;
+              controller.selection = TextSelection.collapsed(
+                offset: formatted.length,
+              );
+            }
+          }
+          // Try to parse the date when complete
+          if (digitsOnly.length == 8) {
+            try {
+              final dateFormat = DateFormat('dd-MM-yyyy');
+              final parsed = dateFormat.parseStrict(controller.text);
+              onDateParsed(parsed);
+            } catch (_) {
+              // Invalid date, set to null
+              onDateParsed(null);
+            }
+          } else if (digitsOnly.isEmpty) {
+            onDateParsed(null);
+          }
+        },
       ),
     );
   }

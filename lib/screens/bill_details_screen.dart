@@ -15,6 +15,7 @@ import 'comprehensive_payment_form.dart';
 import 'comprehensive_bill_form.dart';
 import 'csd_payment_dialog.dart';
 import 'mdld_payment_dialog.dart';
+import 'generic_receivable_payment_dialog.dart';
 
 class BillDetailsScreen extends ConsumerStatefulWidget {
   final int billId;
@@ -389,7 +390,9 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                     children: [
                       // ===== TABLE 1: Invoice Information (Row 1 & 2) =====
                       Table(
-                        defaultColumnWidth: const FixedColumnWidth(100),
+                        defaultColumnWidth: const FixedColumnWidth(
+                          120,
+                        ), // Match Table 2 width
                         border: TableBorder.all(color: Colors.black, width: 1),
                         children: [
                           // ROW 1: Header Row - Invoice Information
@@ -426,14 +429,14 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                             ),
                             children: [
                               _buildDataCell(bill.billNo ?? '-'),
-                              _buildDataCell(_dateFormat.format(bill.billDate)),
                               _buildDataCell(
-                                bill.dueReleaseDate != null
-                                    ? _dateFormat.format(bill.dueReleaseDate!)
+                                bill.invoiceDate != null
+                                    ? _dateFormat.format(bill.invoiceDate!)
                                     : '-',
                               ),
-                              _buildDataCell(bill.tnNumber),
-                              _buildDataCell(bill.consignmentName ?? '-'),
+                              _buildDataCell(_dateFormat.format(bill.billDate)),
+                              _buildDataCell(bill.lotNo ?? '-'),
+                              _buildDataCell(bill.storeName ?? '-'),
                               _buildDataCell(bill.workOrderNo ?? '-'),
                               _buildDataCell(
                                 bill.workOrderDate != null
@@ -476,7 +479,9 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
 
                       // ===== TABLE 2: Deductions & Additional Info (Row 3 & 4) =====
                       Table(
-                        defaultColumnWidth: const FixedColumnWidth(100),
+                        defaultColumnWidth: const FixedColumnWidth(
+                          120,
+                        ), // All columns same width
                         border: TableBorder.all(color: Colors.black, width: 1),
                         children: [
                           // ROW 3: Header Row - Deductions & Additional Info
@@ -497,6 +502,7 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                               _buildHeaderCell('Empty Oil Drum', Colors.black),
                               _buildHeaderCell('Remark', Colors.black),
                               _buildHeaderCell('MD (NPV)', Colors.black),
+                              _buildHeaderCell('Remark', Colors.black),
                               _buildHeaderCell(
                                 'Net Payable Amount',
                                 Colors.black,
@@ -532,17 +538,38 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                                         : const Color(0xFFF8D7DA), // Light red
                               ),
                               _buildDataCell(bill.remarks ?? '-', fontSize: 10),
-                              _buildDataCell('-'),
-                              _buildDataCell('-'),
                               _buildDataCell(
-                                _currencyFormat.format(bill.emptyOilIssued),
+                                _currencyFormat.format(bill.dMeterBox),
+                                backgroundColor:
+                                    bill.dMeterBoxStatus == 'Released'
+                                        ? const Color(0xFFD4EDDA) // Light green
+                                        : const Color(0xFFF8D7DA), // Light red
                               ),
                               _buildDataCell(
-                                '${bill.emptyOilReturned.toInt()} Drum',
+                                bill.dMeterBoxRemark ?? '-',
                                 fontSize: 10,
                               ),
                               _buildDataCell(
-                                _currencyFormat.format(bill.mdLdAmount),
+                                _currencyFormat.format(bill.emptyOilDrum),
+                                backgroundColor:
+                                    bill.emptyOilDrumStatus == 'Released'
+                                        ? const Color(0xFFD4EDDA) // Light green
+                                        : const Color(0xFFF8D7DA), // Light red
+                              ),
+                              _buildDataCell(
+                                bill.emptyOilDrumRemark ?? '-',
+                                fontSize: 10,
+                              ),
+                              _buildDataCell(
+                                _currencyFormat.format(bill.mdNpvAmount),
+                                backgroundColor:
+                                    bill.mdNpvStatus == 'Released'
+                                        ? const Color(0xFFD4EDDA) // Light green
+                                        : const Color(0xFFF8D7DA), // Light red
+                              ),
+                              _buildDataCell(
+                                bill.mdNpvRemark ?? '-',
+                                fontSize: 10,
                               ),
                               _buildDataCell(
                                 _currencyFormat.format(netPayment),
@@ -782,7 +809,13 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
     final invoiceDifference = bill.invoiceAmount - bill.billPassAmount;
     final csdAmount = bill.csdAmount;
     final mdLdAmount = bill.mdLdAmount;
-    final totalReceivables = csdAmount + invoiceDifference + mdLdAmount;
+    final totalReceivables =
+        csdAmount +
+        invoiceDifference +
+        mdLdAmount +
+        bill.mdNpvAmount +
+        bill.dMeterBox +
+        bill.emptyOilDrum;
 
     // Check if there are any receivables
     if (totalReceivables <= 0) {
@@ -1011,6 +1044,151 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
               const SizedBox(height: PremiumTheme.spacingM),
             ],
 
+            if (bill.mdNpvAmount > 0) ...[
+              const SizedBox(height: PremiumTheme.spacingM),
+              _buildMdNpvRow(bill),
+              if (bill.mdNpvStatus != 'Released')
+                Row(
+                  children: [
+                    FilledButton(
+                      onPressed: () async {
+                        await showDialog(
+                          context: context,
+                          builder:
+                              (context) => GenericReceivablePaymentDialog(
+                                bill: bill,
+                                title: 'Add MD(NPV) Payment',
+                                amount: bill.mdNpvAmount,
+                                remarks: 'MD(NPV) Payment Received',
+                                onSuccess: (date) async {
+                                  final dao = ref.read(billsDaoProvider);
+                                  await dao.updateMdNpvStatus(
+                                    bill.id!,
+                                    'Released',
+                                  );
+                                  await dao.updateMdNpvReleasedDate(
+                                    bill.id!,
+                                    date,
+                                  );
+                                  ref.invalidate(
+                                    billByIdProvider(widget.billId),
+                                  );
+                                  ref.invalidate(
+                                    billWithPaymentsProvider(widget.billId),
+                                  );
+                                  ref.invalidate(
+                                    paymentsByBillProvider(widget.billId),
+                                  );
+                                  _showInfoBar(
+                                    'MD(NPV) Payment recorded successfully',
+                                    InfoBarSeverity.success,
+                                  );
+                                },
+                              ),
+                        );
+                      },
+                      child: const Text('Add MD(NPV) Payment'),
+                    ),
+                  ],
+                ),
+            ],
+            if (bill.dMeterBox > 0) ...[
+              const SizedBox(height: PremiumTheme.spacingM),
+              _buildDMeterBoxRow(bill),
+              if (bill.dMeterBoxStatus != 'Released')
+                Row(
+                  children: [
+                    FilledButton(
+                      onPressed: () async {
+                        await showDialog(
+                          context: context,
+                          builder:
+                              (context) => GenericReceivablePaymentDialog(
+                                bill: bill,
+                                title: 'Add D. Meter Box Payment',
+                                amount: bill.dMeterBox,
+                                remarks: 'D. Meter Box Payment Received',
+                                onSuccess: (date) async {
+                                  final dao = ref.read(billsDaoProvider);
+                                  await dao.updateDMeterBoxStatus(
+                                    bill.id!,
+                                    'Released',
+                                  );
+                                  await dao.updateDMeterBoxReleasedDate(
+                                    bill.id!,
+                                    date,
+                                  );
+                                  ref.invalidate(
+                                    billByIdProvider(widget.billId),
+                                  );
+                                  ref.invalidate(
+                                    billWithPaymentsProvider(widget.billId),
+                                  );
+                                  ref.invalidate(
+                                    paymentsByBillProvider(widget.billId),
+                                  );
+                                  _showInfoBar(
+                                    'D. Meter Box Payment recorded successfully',
+                                    InfoBarSeverity.success,
+                                  );
+                                },
+                              ),
+                        );
+                      },
+                      child: const Text('Add D. Meter Box Payment'),
+                    ),
+                  ],
+                ),
+            ],
+            if (bill.emptyOilDrum > 0) ...[
+              const SizedBox(height: PremiumTheme.spacingM),
+              _buildEmptyOilDrumRow(bill),
+              if (bill.emptyOilDrumStatus != 'Released')
+                Row(
+                  children: [
+                    FilledButton(
+                      onPressed: () async {
+                        await showDialog(
+                          context: context,
+                          builder:
+                              (context) => GenericReceivablePaymentDialog(
+                                bill: bill,
+                                title: 'Add Empty Oil Drum Payment',
+                                amount: bill.emptyOilDrum,
+                                remarks: 'Empty Oil Drum Payment Received',
+                                onSuccess: (date) async {
+                                  final dao = ref.read(billsDaoProvider);
+                                  await dao.updateEmptyOilDrumStatus(
+                                    bill.id!,
+                                    'Released',
+                                  );
+                                  await dao.updateEmptyOilDrumReleasedDate(
+                                    bill.id!,
+                                    date,
+                                  );
+                                  ref.invalidate(
+                                    billByIdProvider(widget.billId),
+                                  );
+                                  ref.invalidate(
+                                    billWithPaymentsProvider(widget.billId),
+                                  );
+                                  ref.invalidate(
+                                    paymentsByBillProvider(widget.billId),
+                                  );
+                                  _showInfoBar(
+                                    'Empty Oil Drum Payment recorded successfully',
+                                    InfoBarSeverity.success,
+                                  );
+                                },
+                              ),
+                        );
+                      },
+                      child: const Text('Add Empty Oil Drum Payment'),
+                    ),
+                  ],
+                ),
+            ],
+
             const Divider(),
 
             // Total row
@@ -1078,17 +1256,6 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
               const Expanded(
                 flex: 2,
                 child: Text(
-                  'CSD Due Date',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                    color: PremiumTheme.textSecondary,
-                  ),
-                ),
-              ),
-              const Expanded(
-                flex: 2,
-                child: Text(
                   'CSD Status',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
@@ -1146,29 +1313,19 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                         color: PremiumTheme.textSecondary,
                       ),
                     ),
+                    if (bill.csdDueDate != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Due: ${_dateFormat.format(bill.csdDueDate!)}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Colors.orange.dark,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              ),
-
-              // CSD Due Date
-              Expanded(
-                flex: 2,
-                child:
-                    bill.csdDueDate != null
-                        ? Text(
-                          _dateFormat.format(bill.csdDueDate!),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
-                            color: PremiumTheme.textPrimary,
-                          ),
-                        )
-                        : const Text(
-                          'Not Applicable',
-                          style: TextStyle(
-                            color: PremiumTheme.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
               ),
 
               // CSD Status (Read-only - changes only via CSD Payment)
@@ -1210,9 +1367,7 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                 ),
               ),
 
-              const SizedBox(
-                width: 16,
-              ), // Spacing between status and release date
+              const SizedBox(width: 16),
               // CSD Release Date
               Expanded(
                 flex: 2,
@@ -1237,7 +1392,7 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                           ),
                         )
                         : const Text(
-                          '(manually add date)',
+                          '-',
                           style: TextStyle(
                             color: PremiumTheme.textSecondary,
                             fontSize: 11,
@@ -1245,18 +1400,8 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                         ),
               ),
 
-              // Action button to edit dates
-              Expanded(
-                flex: 1,
-                child: IconButton(
-                  icon: Icon(
-                    FluentIcons.edit,
-                    size: 14,
-                    color: Colors.grey[80],
-                  ),
-                  onPressed: () => _editBill(bill),
-                ),
-              ),
+              // Edit button placeholder for consistent spacing
+              const Expanded(flex: 1, child: SizedBox()),
             ],
           ),
         ],
@@ -1441,6 +1586,511 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                   onPressed: () => _editBill(bill),
                 ),
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMdNpvRow(Bill bill) {
+    final statusColor =
+        bill.mdNpvStatus == 'Released' ? Colors.green : Colors.orange;
+
+    return Container(
+      padding: const EdgeInsets.all(PremiumTheme.spacingM),
+      margin: const EdgeInsets.only(bottom: PremiumTheme.spacingM),
+      decoration: BoxDecoration(
+        color: PremiumTheme.cardBackground,
+        borderRadius: BorderRadius.circular(PremiumTheme.borderRadiusSmall),
+        border: Border.all(color: Colors.grey[30]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  '',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  'Status',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  'Release Date',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(flex: 1, child: SizedBox()),
+            ],
+          ),
+          const SizedBox(height: PremiumTheme.spacingS),
+          // Data row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'MD (NPV) Amount',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: PremiumTheme.textPrimary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _currencyFormat.format(bill.mdNpvAmount),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.purple.dark,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const Text(
+                      'Net Present Value',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: PremiumTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        bill.mdNpvStatus == 'Released'
+                            ? FluentIcons.check_mark
+                            : FluentIcons.clock,
+                        size: 14,
+                        color: statusColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        bill.mdNpvStatus == 'Released' ? 'Released' : 'Pending',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child:
+                    bill.mdNpvReleasedDate != null
+                        ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Released: ${_dateFormat.format(bill.mdNpvReleasedDate!)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.dark,
+                            ),
+                          ),
+                        )
+                        : const Text(
+                          '-',
+                          style: TextStyle(
+                            color: PremiumTheme.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+              ),
+              const Expanded(flex: 1, child: SizedBox()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDMeterBoxRow(Bill bill) {
+    final statusColor =
+        bill.dMeterBoxStatus == 'Released' ? Colors.green : Colors.orange;
+
+    return Container(
+      padding: const EdgeInsets.all(PremiumTheme.spacingM),
+      margin: const EdgeInsets.only(bottom: PremiumTheme.spacingM),
+      decoration: BoxDecoration(
+        color: PremiumTheme.cardBackground,
+        borderRadius: BorderRadius.circular(PremiumTheme.borderRadiusSmall),
+        border: Border.all(color: Colors.grey[30]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  '',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  'Status',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  'Release Date',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(flex: 1, child: SizedBox()),
+            ],
+          ),
+          const SizedBox(height: PremiumTheme.spacingS),
+          // Data row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'D. Meter Box',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: PremiumTheme.textPrimary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _currencyFormat.format(bill.dMeterBox),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.blue.dark,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const Text(
+                      'Double Meter Box Charges',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: PremiumTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        bill.dMeterBoxStatus == 'Released'
+                            ? FluentIcons.check_mark
+                            : FluentIcons.clock,
+                        size: 14,
+                        color: statusColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        bill.dMeterBoxStatus == 'Released'
+                            ? 'Released'
+                            : 'Pending',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child:
+                    bill.dMeterBoxReleasedDate != null
+                        ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Released: ${_dateFormat.format(bill.dMeterBoxReleasedDate!)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.dark,
+                            ),
+                          ),
+                        )
+                        : const Text(
+                          '-',
+                          style: TextStyle(
+                            color: PremiumTheme.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+              ),
+              const Expanded(flex: 1, child: SizedBox()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyOilDrumRow(Bill bill) {
+    final statusColor =
+        bill.emptyOilDrumStatus == 'Released' ? Colors.green : Colors.orange;
+
+    return Container(
+      padding: const EdgeInsets.all(PremiumTheme.spacingM),
+      margin: const EdgeInsets.only(bottom: PremiumTheme.spacingM),
+      decoration: BoxDecoration(
+        color: PremiumTheme.cardBackground,
+        borderRadius: BorderRadius.circular(PremiumTheme.borderRadiusSmall),
+        border: Border.all(color: Colors.grey[30]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  '',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  'Status',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(
+                flex: 2,
+                child: Text(
+                  'Release Date',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                    color: PremiumTheme.textSecondary,
+                  ),
+                ),
+              ),
+              const Expanded(flex: 1, child: SizedBox()),
+            ],
+          ),
+          const SizedBox(height: PremiumTheme.spacingS),
+          // Data row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                flex: 2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Empty Oil Drum',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: PremiumTheme.textPrimary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _currencyFormat.format(bill.emptyOilDrum),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: Colors.orange.dark,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const Text(
+                      'Oil Drum Charges',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: PremiumTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        bill.emptyOilDrumStatus == 'Released'
+                            ? FluentIcons.check_mark
+                            : FluentIcons.clock,
+                        size: 14,
+                        color: statusColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        bill.emptyOilDrumStatus == 'Released'
+                            ? 'Released'
+                            : 'Pending',
+                        style: TextStyle(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child:
+                    bill.emptyOilDrumReleasedDate != null
+                        ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            'Released: ${_dateFormat.format(bill.emptyOilDrumReleasedDate!)}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.green.dark,
+                            ),
+                          ),
+                        )
+                        : const Text(
+                          '-',
+                          style: TextStyle(
+                            color: PremiumTheme.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+              ),
+              const Expanded(flex: 1, child: SizedBox()),
             ],
           ),
         ],
