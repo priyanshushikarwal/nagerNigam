@@ -1964,6 +1964,518 @@ class PdfService {
 
     return exportsDir.path;
   }
+
+  // ==================== EXCEL VIEW PDF METHODS ====================
+
+  /// Generate "Excel View" style PDF for a single bill including Payment Ledger
+  Future<String> exportBillSummaryExcelViewPdf({required int billId}) async {
+    await _loadFonts();
+
+    final bill = await _billsDao.getBillById(billId);
+    if (bill == null) throw StateError('Bill not found');
+
+    final firm = await _loadFirm(bill.firmId);
+    final payments = await _paymentsDao.getPaymentsByBill(billId);
+
+    // Sort payments
+    payments.sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
+
+    final pdf = pw.Document(theme: _createPdfTheme());
+
+    final netPayable =
+        bill.invoiceAmount -
+        bill.tdsAmount -
+        bill.scrapAmount -
+        bill.scrapGstAmount -
+        bill.tcsAmount -
+        bill.gstTdsAmount;
+    final difference = bill.invoiceAmount - bill.billPassAmount;
+
+    pdf.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.all(20), // Reduced margin
+        build: (context) {
+          return [
+            // 1. Header Section
+            _buildExcelViewHeader(firm, bill.clientFirmName),
+            pw.SizedBox(height: 10), // Reduced from 20
+            pw.Divider(thickness: 1, color: PdfColors.grey),
+            pw.SizedBox(height: 10), // Reduced from 20
+            // 2. Details Grid
+            _buildExcelViewDetailsGrid(bill),
+            pw.SizedBox(height: 15), // Reduced from 30
+            // 3. Title
+            pw.Text(
+              'Bill Summary - ${bill.billNo ?? bill.invoiceNo ?? '-'}',
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.bold,
+              ), // Reduced font
+            ),
+            pw.Text(
+              'Bill Summary (Excel View)',
+              style: const pw.TextStyle(
+                fontSize: 10,
+                color: PdfColors.grey,
+              ), // Reduced font
+            ),
+            pw.SizedBox(height: 6), // Reduced from 10
+            // 4. Tables
+            _buildExcelViewTable1(bill, difference),
+            pw.SizedBox(height: 4), // Reduced from 8
+            _buildExcelViewTable2(bill, netPayable),
+            pw.SizedBox(height: 15), // Reduced from 30
+            // 5. Payment Ledger
+            pw.Text(
+              'Payment Ledger',
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.bold,
+              ), // Reduced font
+            ),
+            pw.SizedBox(height: 6), // Reduced from 12
+            _buildExcelPaymentLedger(bill, payments, netPayable),
+            pw.SizedBox(height: 20), // Reduced from 30
+            // 6. Signatures (try to keep together)
+            pw.Wrap(
+              children: [
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildExcelSignature('Signature', 'Verified by Accountant'),
+                    _buildExcelSignature('Signature', 'Verified by 02'),
+                    _buildExcelSignature('Signature', 'Verified by 03'),
+                  ],
+                ),
+              ],
+            ),
+          ];
+        },
+      ),
+    );
+
+    final timestamp = _timestampFormat.format(DateTime.now());
+    final filename = 'Bill_Summary_${bill.tnNumber}_$timestamp.pdf';
+    final savedPath = await _savePdf(await pdf.save(), filename);
+    return savedPath;
+  }
+
+  pw.Widget _buildExcelViewHeader(Firm firm, String? clientFirmName) {
+    return pw.Stack(
+      alignment: pw.Alignment.topCenter,
+      children: [
+        pw.Positioned(
+          left: 0,
+          top: 0,
+          child: pw.Text(
+            'Payment Detail',
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+            ), // Reduced font
+          ),
+        ),
+        pw.Column(
+          children: [
+            pw.Text(
+              firm.name,
+              style: pw.TextStyle(
+                fontSize: 18,
+                fontWeight: pw.FontWeight.bold,
+              ), // Reduced from 24
+            ),
+            pw.SizedBox(height: 2),
+            pw.Text(
+              firm.address ?? '',
+              style: const pw.TextStyle(fontSize: 10),
+            ), // Reduced font
+          ],
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildExcelViewDetailsGrid(Bill bill) {
+    pw.Widget item(String label, String value) {
+      return pw.RichText(
+        text: pw.TextSpan(
+          style: const pw.TextStyle(fontSize: 12),
+          children: [
+            pw.TextSpan(
+              text: '$label - ',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+            pw.TextSpan(text: value),
+          ],
+        ),
+      );
+    }
+
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              item('Lot No.', bill.lotNo ?? '-'),
+              pw.SizedBox(height: 4),
+              item('Store', bill.storeName ?? '-'),
+              pw.SizedBox(height: 4),
+              item('TN', bill.tnNumber),
+            ],
+          ),
+        ),
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              item('Work Order No.', bill.workOrderNo ?? '-'),
+              pw.SizedBox(height: 4),
+              item(
+                'Work Order Date',
+                bill.workOrderDate != null
+                    ? _displayDate.format(bill.workOrderDate!)
+                    : '-',
+              ),
+            ],
+          ),
+        ),
+        pw.Expanded(
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.end,
+            children: [
+              pw.Text(
+                'Nigam Name - ${bill.clientFirmName ?? '-'}',
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildExcelViewTable1(Bill bill, double difference) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(1),
+        1: const pw.FlexColumnWidth(0.8),
+        2: const pw.FlexColumnWidth(0.8),
+        3: const pw.FlexColumnWidth(1),
+        4: const pw.FlexColumnWidth(1),
+        5: const pw.FlexColumnWidth(0.8),
+        6: const pw.FlexColumnWidth(1),
+        7: const pw.FlexColumnWidth(0.8),
+        8: const pw.FlexColumnWidth(0.8),
+      },
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(color: PdfColors.white),
+          children: [
+            _buildExcelHeader('Store'),
+            _buildExcelHeader('Work Order No'),
+            _buildExcelHeader('WO Date'),
+            _buildExcelHeader('Invoice Amount'),
+            _buildExcelHeader('Bill Pass Amount'),
+            _buildExcelHeader('Difference'),
+            _buildExcelHeader('CSD Amount'),
+            _buildExcelHeader('CSD Due Date'),
+            _buildExcelHeader('CSD Release Date'),
+          ],
+        ),
+        pw.TableRow(
+          children: [
+            _buildExcelCell(bill.storeName ?? '-'),
+            _buildExcelCell(bill.workOrderNo ?? '-'),
+            _buildExcelCell(
+              bill.workOrderDate != null
+                  ? _displayDate.format(bill.workOrderDate!)
+                  : '-',
+            ),
+            _buildExcelCell(_indianCurrency.format(bill.invoiceAmount)),
+            _buildExcelCell(_indianCurrency.format(bill.billPassAmount)),
+            _buildExcelCell(_indianCurrency.format(difference)),
+            _buildExcelCell(
+              _indianCurrency.format(bill.csdAmount),
+              color:
+                  bill.csdStatus == 'Released'
+                      ? PdfColors.green50
+                      : PdfColors.red50,
+            ),
+            _buildExcelCell(
+              bill.csdDueDate != null
+                  ? _displayDate.format(bill.csdDueDate!)
+                  : '-',
+            ),
+            _buildExcelCell(
+              bill.csdReleasedDate != null
+                  ? _displayDate.format(bill.csdReleasedDate!)
+                  : '-',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildExcelViewTable2(Bill bill, double netPayable) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(1),
+        1: const pw.FlexColumnWidth(1),
+        2: const pw.FlexColumnWidth(1),
+        3: const pw.FlexColumnWidth(1),
+        4: const pw.FlexColumnWidth(1),
+        5: const pw.FlexColumnWidth(1),
+        6: const pw.FlexColumnWidth(1),
+        7: const pw.FlexColumnWidth(1),
+        8: const pw.FlexColumnWidth(1),
+        9: const pw.FlexColumnWidth(1.2),
+      },
+      children: [
+        pw.TableRow(
+          children: [
+            _buildExcelHeader('GST TDS'),
+            _buildExcelHeader('MD Amount'),
+            _buildExcelHeader('Remark'),
+            _buildExcelHeader('D. Meter Box'),
+            _buildExcelHeader('Remark'),
+            _buildExcelHeader('Empty Oil Drum'),
+            _buildExcelHeader('Remark'),
+            _buildExcelHeader('MD (NPV)'),
+            _buildExcelHeader('Remark'),
+            _buildExcelHeader('Net Payable Amount'),
+          ],
+        ),
+        pw.TableRow(
+          children: [
+            _buildExcelCell(_indianCurrency.format(bill.gstTdsAmount)),
+            _buildExcelCell(
+              _indianCurrency.format(bill.mdLdAmount),
+              color:
+                  bill.mdLdStatus == 'Released'
+                      ? PdfColors.green50
+                      : PdfColors.red50,
+            ),
+            _buildExcelCell(bill.remarks ?? '-', fontSize: 9),
+            _buildExcelCell(
+              _indianCurrency.format(bill.dMeterBox),
+              color:
+                  bill.dMeterBoxStatus == 'Released'
+                      ? PdfColors.green50
+                      : PdfColors.red50,
+            ),
+            _buildExcelCell(bill.dMeterBoxRemark ?? '-', fontSize: 9),
+            _buildExcelCell(
+              _indianCurrency.format(bill.emptyOilDrum),
+              color:
+                  bill.emptyOilDrumStatus == 'Released'
+                      ? PdfColors.green50
+                      : PdfColors.red50,
+            ),
+            _buildExcelCell(bill.emptyOilDrumRemark ?? '-', fontSize: 9),
+            _buildExcelCell(
+              _indianCurrency.format(bill.mdNpvAmount),
+              color:
+                  bill.mdNpvStatus == 'Released'
+                      ? PdfColors.green50
+                      : PdfColors.red50,
+            ),
+            _buildExcelCell(bill.mdNpvRemark ?? '-', fontSize: 9),
+            _buildExcelCell(
+              _indianCurrency.format(netPayable),
+              isBold: true,
+              color: PdfColors.grey100,
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildExcelPaymentLedger(
+    Bill bill,
+    List<Payment> payments,
+    double netPayable,
+  ) {
+    // Build entries
+    final entries = <List<dynamic>>[];
+    // Initial
+    entries.add([
+      bill.createdAt,
+      'Bill Created',
+      0.0,
+      0.0,
+      netPayable,
+      'Pending',
+      '-',
+    ]);
+
+    double runningTotal = 0;
+    for (var p in payments) {
+      runningTotal += p.amountPaid;
+      final remaining = netPayable - runningTotal;
+      final showRemaining = remaining < 0.01 ? 0.0 : remaining;
+      String status =
+          showRemaining <= 0.01
+              ? 'Paid'
+              : (runningTotal > 0 ? 'Partially Paid' : 'Pending');
+      entries.add([
+        p.paymentDate,
+        'Payment Received',
+        p.amountPaid,
+        runningTotal,
+        showRemaining,
+        status,
+        p.remarks ?? '-',
+      ]);
+    }
+
+    return pw.Table(
+      columnWidths: {
+        0: const pw.FlexColumnWidth(1.2),
+        1: const pw.FlexColumnWidth(2),
+        2: const pw.FlexColumnWidth(1.5),
+        3: const pw.FlexColumnWidth(1.5),
+        4: const pw.FlexColumnWidth(1.5),
+        5: const pw.FlexColumnWidth(1.2),
+        6: const pw.FlexColumnWidth(2.5),
+      },
+      children: [
+        pw.TableRow(
+          decoration: const pw.BoxDecoration(
+            border: pw.Border(
+              bottom: pw.BorderSide(color: PdfColors.grey, width: 0.5),
+            ),
+          ),
+          children: [
+            _buildExcelLedgerHeader('Date'),
+            _buildExcelLedgerHeader('Type'),
+            _buildExcelLedgerHeader('Amount Paid'),
+            _buildExcelLedgerHeader('Total Paid'),
+            _buildExcelLedgerHeader('Remaining'),
+            _buildExcelLedgerHeader('Status'),
+            _buildExcelLedgerHeader('Remarks'),
+          ],
+        ),
+        for (var e in entries)
+          pw.TableRow(
+            children: [
+              _buildExcelLedgerCell(_displayDate.format(e[0] as DateTime)),
+              _buildExcelLedgerCell(e[1] as String),
+              _buildExcelLedgerCell(_indianCurrency.format(e[2])),
+              _buildExcelLedgerCell(_indianCurrency.format(e[3])),
+              _buildExcelLedgerCell(
+                _indianCurrency.format(e[4]),
+                color:
+                    (e[4] as double) <= 0.01
+                        ? PdfColors.green700
+                        : PdfColors.orange700,
+                forceColor: true,
+              ),
+              _buildExcelLedgerCell(
+                e[5] as String,
+                color:
+                    (e[5] as String) == 'Paid'
+                        ? PdfColors.green700
+                        : PdfColors.orange700,
+                forceColor: true,
+              ),
+              _buildExcelLedgerCell(e[6] as String),
+            ],
+          ),
+      ],
+    );
+  }
+
+  pw.Widget _buildExcelHeader(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(3), // Reduced padding
+      child: pw.Text(
+        text,
+        textAlign: pw.TextAlign.center,
+        style: pw.TextStyle(
+          fontSize: 8,
+          fontWeight: pw.FontWeight.bold,
+        ), // Reduced font
+      ),
+    );
+  }
+
+  pw.Widget _buildExcelCell(
+    String text, {
+    double fontSize = 8, // Reduced default font
+    bool isBold = false,
+    PdfColor? color,
+  }) {
+    final w = pw.Padding(
+      padding: const pw.EdgeInsets.all(3), // Reduced padding
+      child: pw.Text(
+        text,
+        textAlign: pw.TextAlign.center,
+        style: pw.TextStyle(
+          fontSize: fontSize,
+          fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
+    );
+    if (color != null) return pw.Container(color: color, child: w);
+    return w;
+  }
+
+  pw.Widget _buildExcelLedgerHeader(String text) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(3), // Reduced padding
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 9,
+          fontWeight: pw.FontWeight.bold,
+        ), // Reduced font
+      ),
+    );
+  }
+
+  pw.Widget _buildExcelLedgerCell(
+    String text, {
+    PdfColor? color,
+    bool forceColor = false,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.all(3), // Reduced padding
+      child: pw.Text(
+        text,
+        style: pw.TextStyle(
+          fontSize: 9, // Reduced font
+          color: forceColor ? color : PdfColors.black,
+          fontWeight: forceColor ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  pw.Widget _buildExcelSignature(String title, String subtitle) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          title,
+          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.Text(
+          subtitle,
+          style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+        ),
+      ],
+    );
+  }
 }
 
 class _BillTableRow {
