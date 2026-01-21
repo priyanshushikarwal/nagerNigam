@@ -2025,6 +2025,8 @@ class PdfService {
             _buildExcelViewTable1(bill, difference),
             pw.SizedBox(height: 4), // Reduced from 8
             _buildExcelViewTable2(bill, netPayable),
+            pw.SizedBox(height: 4),
+            _buildExcelViewTable3(bill, netPayable),
             pw.SizedBox(height: 15), // Reduced from 30
             // 5. Payment Ledger
             pw.Text(
@@ -2062,35 +2064,22 @@ class PdfService {
   }
 
   pw.Widget _buildExcelViewHeader(Firm firm, String? clientFirmName) {
-    return pw.Stack(
-      alignment: pw.Alignment.topCenter,
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
-        pw.Positioned(
-          left: 0,
-          top: 0,
-          child: pw.Text(
-            'Payment Detail',
-            style: pw.TextStyle(
-              fontSize: 12,
-              fontWeight: pw.FontWeight.bold,
-            ), // Reduced font
-          ),
+        // First row: Payment Detail on left
+        pw.Text(
+          'Payment Detail',
+          style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
         ),
-        pw.Column(
-          children: [
-            pw.Text(
-              firm.name,
-              style: pw.TextStyle(
-                fontSize: 18,
-                fontWeight: pw.FontWeight.bold,
-              ), // Reduced from 24
-            ),
-            pw.SizedBox(height: 2),
-            pw.Text(
-              firm.address ?? '',
-              style: const pw.TextStyle(fontSize: 10),
-            ), // Reduced font
-          ],
+        pw.SizedBox(height: 8),
+        // Second row: Client Firm Name centered
+        pw.Center(
+          child: pw.Text(
+            clientFirmName ?? '-',
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            textAlign: pw.TextAlign.center,
+          ),
         ),
       ],
     );
@@ -2139,6 +2128,15 @@ class PdfService {
                     ? _displayDate.format(bill.workOrderDate!)
                     : '-',
               ),
+              pw.SizedBox(height: 4),
+              item('Invoice No.', bill.invoiceNo ?? '-'),
+              pw.SizedBox(height: 4),
+              item(
+                'Invoice Date',
+                bill.invoiceDate != null
+                    ? _displayDate.format(bill.invoiceDate!)
+                    : '-',
+              ),
             ],
           ),
         ),
@@ -2147,7 +2145,7 @@ class PdfService {
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               pw.Text(
-                'Nigam Name - ${bill.clientFirmName ?? '-'}',
+                'Nigam Name - ${bill.firmName ?? '-'}',
                 style: pw.TextStyle(
                   fontSize: 14,
                   fontWeight: pw.FontWeight.bold,
@@ -2228,35 +2226,46 @@ class PdfService {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
       columnWidths: {
-        0: const pw.FlexColumnWidth(1),
-        1: const pw.FlexColumnWidth(1),
-        2: const pw.FlexColumnWidth(1),
-        3: const pw.FlexColumnWidth(1),
-        4: const pw.FlexColumnWidth(1),
-        5: const pw.FlexColumnWidth(1),
-        6: const pw.FlexColumnWidth(1),
-        7: const pw.FlexColumnWidth(1),
-        8: const pw.FlexColumnWidth(1),
-        9: const pw.FlexColumnWidth(1.2),
+        0: const pw.FlexColumnWidth(1), // Scrap Amount
+        1: const pw.FlexColumnWidth(1), // Scrap GST
+        2: const pw.FlexColumnWidth(1), // TDS
+        3: const pw.FlexColumnWidth(1), // TCS
+        4: const pw.FlexColumnWidth(1), // GST TDS
+        5: const pw.FlexColumnWidth(1), // MD Amount
       },
       children: [
         pw.TableRow(
           children: [
+            _buildExcelHeader('Scrap Amount'),
+            _buildExcelHeader('Scrap GST'),
+            _buildExcelHeader('TDS (I.TAX)'),
+            _buildExcelHeader('TCS'),
             _buildExcelHeader('GST TDS'),
-            _buildExcelHeader('MD Amount'),
-            _buildExcelHeader('Remark'),
-            _buildExcelHeader('D. Meter Box'),
-            _buildExcelHeader('Remark'),
-            _buildExcelHeader('Empty Oil Drum'),
-            _buildExcelHeader('Remark'),
-            _buildExcelHeader('MD (NPV)'),
-            _buildExcelHeader('Remark'),
-            _buildExcelHeader('Net Payable Amount'),
+            _buildExcelHeader('MD/LD Amount'),
           ],
         ),
         pw.TableRow(
           children: [
-            _buildExcelCell(_indianCurrency.format(bill.gstTdsAmount)),
+            _buildExcelCell(
+              _indianCurrency.format(bill.scrapAmount),
+              color: bill.scrapAmount > 0 ? PdfColors.amber50 : null,
+            ),
+            _buildExcelCell(
+              _indianCurrency.format(bill.scrapGstAmount),
+              color: bill.scrapGstAmount > 0 ? PdfColors.amber50 : null,
+            ),
+            _buildExcelCell(
+              _indianCurrency.format(bill.tdsAmount),
+              color: bill.tdsAmount > 0 ? PdfColors.amber50 : null,
+            ),
+            _buildExcelCell(
+              _indianCurrency.format(bill.tcsAmount),
+              color: bill.tcsAmount > 0 ? PdfColors.amber50 : null,
+            ),
+            _buildExcelCell(
+              _indianCurrency.format(bill.gstTdsAmount),
+              color: bill.gstTdsAmount > 0 ? PdfColors.amber50 : null,
+            ),
             _buildExcelCell(
               _indianCurrency.format(bill.mdLdAmount),
               color:
@@ -2264,7 +2273,38 @@ class PdfService {
                       ? PdfColors.green50
                       : PdfColors.red50,
             ),
-            _buildExcelCell(bill.remarks ?? '-', fontSize: 9),
+          ],
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildExcelViewTable3(Bill bill, double netPayable) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(1), // D Meter Box
+        1: const pw.FlexColumnWidth(1.2), // Remark
+        2: const pw.FlexColumnWidth(1), // Empty Oil
+        3: const pw.FlexColumnWidth(1.2), // Remark
+        4: const pw.FlexColumnWidth(1), // MD NPV
+        5: const pw.FlexColumnWidth(1.2), // Remark
+        6: const pw.FlexColumnWidth(1.2), // Net Payable
+      },
+      children: [
+        pw.TableRow(
+          children: [
+            _buildExcelHeader('D. Meter Box'),
+            _buildExcelHeader('Remark'),
+            _buildExcelHeader('Empty Oil Drum'),
+            _buildExcelHeader('Remark'),
+            _buildExcelHeader('MD (NPV)'),
+            _buildExcelHeader('Remark'),
+            _buildExcelHeader('Net Payable'),
+          ],
+        ),
+        pw.TableRow(
+          children: [
             _buildExcelCell(
               _indianCurrency.format(bill.dMeterBox),
               color:
@@ -2272,7 +2312,7 @@ class PdfService {
                       ? PdfColors.green50
                       : PdfColors.red50,
             ),
-            _buildExcelCell(bill.dMeterBoxRemark ?? '-', fontSize: 9),
+            _buildExcelCell(bill.dMeterBoxRemark ?? '-', fontSize: 7),
             _buildExcelCell(
               _indianCurrency.format(bill.emptyOilDrum),
               color:
@@ -2280,7 +2320,7 @@ class PdfService {
                       ? PdfColors.green50
                       : PdfColors.red50,
             ),
-            _buildExcelCell(bill.emptyOilDrumRemark ?? '-', fontSize: 9),
+            _buildExcelCell(bill.emptyOilDrumRemark ?? '-', fontSize: 7),
             _buildExcelCell(
               _indianCurrency.format(bill.mdNpvAmount),
               color:
@@ -2288,11 +2328,11 @@ class PdfService {
                       ? PdfColors.green50
                       : PdfColors.red50,
             ),
-            _buildExcelCell(bill.mdNpvRemark ?? '-', fontSize: 9),
+            _buildExcelCell(bill.mdNpvRemark ?? '-', fontSize: 7),
             _buildExcelCell(
               _indianCurrency.format(netPayable),
               isBold: true,
-              color: PdfColors.grey100,
+              color: PdfColors.grey200,
             ),
           ],
         ),

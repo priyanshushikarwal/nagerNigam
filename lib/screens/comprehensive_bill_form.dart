@@ -101,26 +101,32 @@ class _ComprehensiveBillFormDialogState
   }
 
   void _initializeControllers() {
+    // Helper to format amount: show empty for 0, otherwise show value
+    String formatAmount(double? value) {
+      if (value == null || value == 0) return '';
+      return value.toStringAsFixed(2);
+    }
+
     _amountController = TextEditingController(
-      text: widget.bill?.amount.toStringAsFixed(2) ?? '',
+      text: formatAmount(widget.bill?.amount),
     );
     _invoiceAmountController = TextEditingController(
-      text: widget.bill?.invoiceAmount.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.invoiceAmount),
     );
     _billPassAmountController = TextEditingController(
-      text: widget.bill?.billPassAmount.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.billPassAmount),
     );
     _csdAmountController = TextEditingController(
-      text: widget.bill?.csdAmount.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.csdAmount),
     );
     _scrapAmountController = TextEditingController(
-      text: widget.bill?.scrapAmount.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.scrapAmount),
     );
     _scrapGstAmountController = TextEditingController(
-      text: widget.bill?.scrapGstAmount.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.scrapGstAmount),
     );
     _mdLdAmountController = TextEditingController(
-      text: widget.bill?.mdLdAmount.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.mdLdAmount),
     );
 
     _remarksController = TextEditingController(
@@ -128,13 +134,13 @@ class _ComprehensiveBillFormDialogState
     );
     // Manual amount controllers
     _tdsAmountController = TextEditingController(
-      text: widget.bill?.tdsAmount.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.tdsAmount),
     );
     _tcsAmountController = TextEditingController(
-      text: widget.bill?.tcsAmount.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.tcsAmount),
     );
     _gstTdsAmountController = TextEditingController(
-      text: widget.bill?.gstTdsAmount.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.gstTdsAmount),
     );
     // Payment tracking controllers
     _transactionNoController = TextEditingController(
@@ -155,13 +161,13 @@ class _ComprehensiveBillFormDialogState
       text: widget.bill?.storeName ?? '',
     );
     _dMeterBoxController = TextEditingController(
-      text: widget.bill?.dMeterBox.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.dMeterBox),
     );
     _mdNpvAmountController = TextEditingController(
-      text: widget.bill?.mdNpvAmount.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.mdNpvAmount),
     );
     _emptyOilDrumController = TextEditingController(
-      text: widget.bill?.emptyOilDrum.toStringAsFixed(2) ?? '0.00',
+      text: formatAmount(widget.bill?.emptyOilDrum),
     );
     _dMeterBoxRemarkController = TextEditingController(
       text: widget.bill?.dMeterBoxRemark ?? '',
@@ -882,38 +888,23 @@ class _ComprehensiveBillFormDialogState
           Row(
             children: [
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'D Meter Box (₹)',
-                  child: TextBox(
-                    controller: _dMeterBoxController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                  ),
+                  controller: _dMeterBoxController,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'MD (NPV) (₹)',
-                  child: TextBox(
-                    controller: _mdNpvAmountController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                  ),
+                  controller: _mdNpvAmountController,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'Empty Oil Drum (₹)',
-                  child: TextBox(
-                    controller: _emptyOilDrumController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                  ),
+                  controller: _emptyOilDrumController,
                 ),
               ),
             ],
@@ -996,14 +987,9 @@ class _ComprehensiveBillFormDialogState
             ],
           ),
           const SizedBox(height: 16),
-          InfoLabel(
+          _buildCurrencyField(
             label: 'Amount (₹) *',
-            child: TextBox(
-              controller: _amountController,
-              placeholder: '0.00',
-              enabled: !_isSubmitting,
-              keyboardType: TextInputType.number,
-            ),
+            controller: _amountController,
           ),
         ],
       ),
@@ -1019,26 +1005,16 @@ class _ComprehensiveBillFormDialogState
           Row(
             children: [
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'Invoice Amount (₹)',
-                  child: TextBox(
-                    controller: _invoiceAmountController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                  ),
+                  controller: _invoiceAmountController,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'Bill Pass Amount (₹)',
-                  child: TextBox(
-                    controller: _billPassAmountController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                  ),
+                  controller: _billPassAmountController,
                 ),
               ),
             ],
@@ -1047,14 +1023,9 @@ class _ComprehensiveBillFormDialogState
           Row(
             children: [
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'CSD Amount (₹)',
-                  child: TextBox(
-                    controller: _csdAmountController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                  ),
+                  controller: _csdAmountController,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1073,26 +1044,16 @@ class _ComprehensiveBillFormDialogState
           Row(
             children: [
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'Scrap Amount (₹)',
-                  child: TextBox(
-                    controller: _scrapAmountController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                  ),
+                  controller: _scrapAmountController,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'Scrap GST (₹)',
-                  child: TextBox(
-                    controller: _scrapGstAmountController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                  ),
+                  controller: _scrapGstAmountController,
                 ),
               ),
             ],
@@ -1101,14 +1062,9 @@ class _ComprehensiveBillFormDialogState
           Row(
             children: [
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'MD/LD Amount (₹)',
-                  child: TextBox(
-                    controller: _mdLdAmountController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                  ),
+                  controller: _mdLdAmountController,
                 ),
               ),
               const SizedBox(width: 12),
@@ -1130,50 +1086,26 @@ class _ComprehensiveBillFormDialogState
           Row(
             children: [
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'TDS Amount (I.TAX 2%)',
-                  child: TextBox(
-                    controller: _tdsAmountController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                    prefix: const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Text('₹'),
-                    ),
-                  ),
+                  controller: _tdsAmountController,
+                  showPrefix: true,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'GST TDS Amount (2%)',
-                  child: TextBox(
-                    controller: _gstTdsAmountController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                    prefix: const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Text('₹'),
-                    ),
-                  ),
+                  controller: _gstTdsAmountController,
+                  showPrefix: true,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: InfoLabel(
+                child: _buildCurrencyField(
                   label: 'TCS Amount (IN TAX 1%)',
-                  child: TextBox(
-                    controller: _tcsAmountController,
-                    placeholder: '0.00',
-                    enabled: !_isSubmitting,
-                    keyboardType: TextInputType.number,
-                    prefix: const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: Text('₹'),
-                    ),
-                  ),
+                  controller: _tcsAmountController,
+                  showPrefix: true,
                 ),
               ),
             ],
@@ -1291,6 +1223,40 @@ class _ComprehensiveBillFormDialogState
           } else if (digitsOnly.isEmpty) {
             onDateParsed(null);
           }
+        },
+      ),
+    );
+  }
+
+  /// Helper to build a currency text field that selects all text on focus
+  /// This allows users to easily replace "0.00" values when clicking
+  Widget _buildCurrencyField({
+    required String label,
+    required TextEditingController controller,
+    bool enabled = true,
+    bool showPrefix = false,
+  }) {
+    return InfoLabel(
+      label: label,
+      child: TextBox(
+        controller: controller,
+        placeholder: '0.00',
+        enabled: enabled && !_isSubmitting,
+        keyboardType: TextInputType.number,
+        prefix:
+            showPrefix
+                ? const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Text('₹'),
+                )
+                : null,
+        onTap: () {
+          // Select all text when tapping on the field
+          // This allows users to easily replace "0.00" or any existing value
+          controller.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: controller.text.length,
+          );
         },
       ),
     );

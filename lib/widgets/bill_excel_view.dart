@@ -60,24 +60,14 @@ class BillExcelView extends StatelessWidget {
                   ),
                 ),
               ),
-              // Center: Firm Details
+              // Center: Client Firm Details (Supplier/Client)
               Column(
                 children: [
                   Text(
-                    firm!.name,
+                    bill.clientFirmName ?? '-',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    firm!.address ?? '',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.normal,
                       color: Colors.black,
                     ),
                     textAlign: TextAlign.center,
@@ -117,6 +107,13 @@ class BillExcelView extends StatelessWidget {
                           ? dateFormat.format(bill.workOrderDate!)
                           : '-',
                     ),
+                    _buildDetailRow('Invoice No.', bill.invoiceNo ?? '-'),
+                    _buildDetailRow(
+                      'Invoice Date',
+                      bill.invoiceDate != null
+                          ? dateFormat.format(bill.invoiceDate!)
+                          : '-',
+                    ),
                   ],
                 ),
               ),
@@ -126,7 +123,7 @@ class BillExcelView extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      'Nigam Name - ${bill.clientFirmName ?? '-'}',
+                      'Nigam Name - ${firm?.name ?? '-'}',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -181,7 +178,7 @@ class BillExcelView extends StatelessWidget {
           const SizedBox(height: 10),
 
           // 4. Excel View Tables
-          // Table 1
+          // Table 1: Basic Bill Info
           Table(
             columnWidths: const {
               0: FlexColumnWidth(1), // Store
@@ -247,43 +244,69 @@ class BillExcelView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8), // Small gap between tables
-          // Table 2
+          // Table 2: Deductions (Scrap, TDS, TCS, GST TDS)
           Table(
             columnWidths: const {
-              0: FlexColumnWidth(1), // GST TDS
-              1: FlexColumnWidth(1), // MD Amount
-              2: FlexColumnWidth(1), // Remark
-              3: FlexColumnWidth(1), // D Meter Box
-              4: FlexColumnWidth(1), // Remark
-              5: FlexColumnWidth(1), // Empty Oil
-              6: FlexColumnWidth(1), // Remark
-              7: FlexColumnWidth(1), // MD NPV
-              8: FlexColumnWidth(1), // Remark
-              9: FlexColumnWidth(1.2), // Net Payable
+              0: FlexColumnWidth(1), // Scrap Amount
+              1: FlexColumnWidth(1), // Scrap GST
+              2: FlexColumnWidth(1), // TDS
+              3: FlexColumnWidth(1), // TCS
+              4: FlexColumnWidth(1), // GST TDS
+              5: FlexColumnWidth(1), // MD Amount
             },
             border: TableBorder.all(color: Colors.black, width: 1),
             children: [
-              // Header Row 2
+              // Header Row
               TableRow(
                 decoration: const BoxDecoration(color: Colors.white),
                 children: [
+                  _buildHeaderCell('Scrap Amount'),
+                  _buildHeaderCell('Scrap GST'),
+                  _buildHeaderCell('TDS (I.TAX)'),
+                  _buildHeaderCell('TCS'),
                   _buildHeaderCell('GST TDS'),
-                  _buildHeaderCell('MD Amount'),
-                  _buildHeaderCell('Remark'),
-                  _buildHeaderCell('D. Meter Box'),
-                  _buildHeaderCell('Remark'),
-                  _buildHeaderCell('Empty Oil Drum'),
-                  _buildHeaderCell('Remark'),
-                  _buildHeaderCell('MD (NPV)'),
-                  _buildHeaderCell('Remark'),
-                  _buildHeaderCell('Net Payable Amount'),
+                  _buildHeaderCell('MD/LD Amount'),
                 ],
               ),
-              // Data Row 2
+              // Data Row
               TableRow(
                 decoration: const BoxDecoration(color: Colors.white),
                 children: [
-                  _buildDataCell(currencyFormat.format(bill.gstTdsAmount)),
+                  _buildDataCell(
+                    currencyFormat.format(bill.scrapAmount),
+                    backgroundColor:
+                        bill.scrapAmount > 0
+                            ? const Color(0xFFFFF3CD)
+                            : Colors.white,
+                  ),
+                  _buildDataCell(
+                    currencyFormat.format(bill.scrapGstAmount),
+                    backgroundColor:
+                        bill.scrapGstAmount > 0
+                            ? const Color(0xFFFFF3CD)
+                            : Colors.white,
+                  ),
+                  _buildDataCell(
+                    currencyFormat.format(bill.tdsAmount),
+                    backgroundColor:
+                        bill.tdsAmount > 0
+                            ? const Color(0xFFFFF3CD)
+                            : Colors.white,
+                  ),
+                  _buildDataCell(
+                    currencyFormat.format(bill.tcsAmount),
+                    backgroundColor:
+                        bill.tcsAmount > 0
+                            ? const Color(0xFFFFF3CD)
+                            : Colors.white,
+                  ),
+                  _buildDataCell(
+                    currencyFormat.format(bill.gstTdsAmount),
+                    backgroundColor:
+                        bill.gstTdsAmount > 0
+                            ? const Color(0xFFFFF3CD)
+                            : Colors.white,
+                  ),
                   _buildDataCell(
                     currencyFormat.format(bill.mdLdAmount),
                     backgroundColor:
@@ -291,10 +314,42 @@ class BillExcelView extends StatelessWidget {
                             ? const Color(0xFFD4EDDA)
                             : const Color(0xFFF8D7DA),
                   ),
-                  _buildDataCell(
-                    bill.remarks ?? '-',
-                    fontSize: 10,
-                  ), // General Remark
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // Table 3: Other Receivables (D. Meter Box, MD NPV, Empty Oil Drum)
+          Table(
+            columnWidths: const {
+              0: FlexColumnWidth(1), // D Meter Box
+              1: FlexColumnWidth(1.2), // Remark
+              2: FlexColumnWidth(1), // Empty Oil
+              3: FlexColumnWidth(1.2), // Remark
+              4: FlexColumnWidth(1), // MD NPV
+              5: FlexColumnWidth(1.2), // Remark
+              6: FlexColumnWidth(1.2), // Net Payable
+            },
+            border: TableBorder.all(color: Colors.black, width: 1),
+            children: [
+              // Header Row
+              TableRow(
+                decoration: const BoxDecoration(color: Colors.white),
+                children: [
+                  _buildHeaderCell('D. Meter Box'),
+                  _buildHeaderCell('Remark'),
+                  _buildHeaderCell('Empty Oil Drum'),
+                  _buildHeaderCell('Remark'),
+                  _buildHeaderCell('MD (NPV)'),
+                  _buildHeaderCell('Remark'),
+                  _buildHeaderCell('Net Payable'),
+                ],
+              ),
+              // Data Row
+              TableRow(
+                decoration: const BoxDecoration(color: Colors.white),
+                children: [
                   _buildDataCell(
                     currencyFormat.format(bill.dMeterBox),
                     backgroundColor:
@@ -322,7 +377,7 @@ class BillExcelView extends StatelessWidget {
                   _buildDataCell(
                     currencyFormat.format(netPayable),
                     isBold: true,
-                    backgroundColor: Colors.grey[20],
+                    backgroundColor: const Color(0xFFE0E0E0), // Light grey
                   ),
                 ],
               ),
