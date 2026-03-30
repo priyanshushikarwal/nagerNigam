@@ -9,6 +9,7 @@ import '../models/bill.dart';
 import '../state/database_providers.dart';
 import '../state/service_providers.dart';
 import '../state/firm_providers.dart';
+import '../state/payment_providers.dart';
 import '../state/tender_providers.dart';
 import '../services/sync_service.dart';
 import 'comprehensive_payment_form.dart';
@@ -42,6 +43,40 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
 
   final _dateFormat = DateFormat('dd-MM-yyyy');
   bool _isExporting = false;
+  int? _viewingPaymentId;
+
+  Future<void> _refreshBillDetails() async {
+    ref.invalidate(billByIdProvider(widget.billId));
+    ref.invalidate(billWithPaymentsProvider(widget.billId));
+    ref.invalidate(paymentsByBillProvider(widget.billId));
+    ref.invalidate(paymentsForFirmProvider);
+
+    if (mounted) {
+      _showInfoBar('Bill details refreshed', InfoBarSeverity.success);
+    }
+  }
+
+  Future<void> _viewPaymentProof(Payment payment) async {
+    if (payment.id == null || _viewingPaymentId != null) {
+      return;
+    }
+
+    setState(() => _viewingPaymentId = payment.id);
+
+    try {
+      await ref
+          .read(paymentProofStorageServiceProvider)
+          .openPaymentProof(payment);
+    } catch (e) {
+      if (mounted) {
+        _showInfoBar('Unable to open payment proof: $e', InfoBarSeverity.error);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _viewingPaymentId = null);
+      }
+    }
+  }
 
   Future<void> _exportBillPdf() async {
     setState(() => _isExporting = true);
@@ -151,8 +186,12 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
     if (confirmed != true) return;
 
     try {
+      final paymentId = payment.id!;
+      await ref.read(syncServiceProvider.notifier).deletePaymentFromCloud(
+        paymentId,
+      );
       final paymentsDao = ref.read(paymentsDaoProvider);
-      await paymentsDao.deletePayment(payment.id!);
+      await paymentsDao.deletePayment(paymentId);
 
       // Invalidate all related providers to refresh the UI
       ref.invalidate(billByIdProvider(widget.billId));
@@ -2366,6 +2405,28 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                             ? Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
+                                if ((entry.payment?.proofPath ?? '').isNotEmpty)
+                                  IconButton(
+                                    icon:
+                                        _viewingPaymentId == entry.payment!.id
+                                            ? const SizedBox(
+                                              width: 14,
+                                              height: 14,
+                                              child: ProgressRing(
+                                                strokeWidth: 2,
+                                              ),
+                                            )
+                                            : Icon(
+                                              FluentIcons.view,
+                                              size: 14,
+                                              color: Colors.teal,
+                                            ),
+                                    onPressed:
+                                        _viewingPaymentId == null
+                                            ? () =>
+                                                _viewPaymentProof(entry.payment!)
+                                            : null,
+                                  ),
                                 IconButton(
                                   icon: Icon(
                                     FluentIcons.edit,
@@ -2515,6 +2576,17 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                       runSpacing: PremiumTheme.spacingS,
                       alignment: WrapAlignment.end,
                       children: [
+                        Button(
+                          onPressed: _refreshBillDetails,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(FluentIcons.refresh, size: 16),
+                              SizedBox(width: PremiumTheme.spacingXS),
+                              Text('Refresh'),
+                            ],
+                          ),
+                        ),
                         Button(
                           onPressed: () => _editBill(bill),
                           child: Row(

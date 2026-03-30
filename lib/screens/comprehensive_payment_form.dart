@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../core/premium_theme.dart';
 import '../models/bill.dart';
+import '../services/sync_service.dart';
 import '../state/database_providers.dart';
 
 class ComprehensivePaymentFormDialog extends ConsumerStatefulWidget {
@@ -310,10 +311,11 @@ class _ComprehensivePaymentFormDialogState
       );
 
       final paymentsDao = ref.read(paymentsDaoProvider);
+      int? savedPaymentId;
 
       if (widget.payment == null) {
         // Create new payment (auto-updates bill status to "Paid")
-        await paymentsDao.addPayment(
+        savedPaymentId = await paymentsDao.addPayment(
           payment: payment,
           proofSourcePath: _proofSourcePath,
         );
@@ -323,6 +325,14 @@ class _ComprehensivePaymentFormDialogState
           payment: payment,
           proofSourcePath: _proofSourcePath,
         );
+        savedPaymentId = widget.payment!.id;
+      }
+
+      if (savedPaymentId != null) {
+        final savedPayment = await paymentsDao.getPaymentById(savedPaymentId);
+        if (savedPayment != null) {
+          await ref.read(syncServiceProvider.notifier).pushPayment(savedPayment);
+        }
       }
 
       if (mounted) {

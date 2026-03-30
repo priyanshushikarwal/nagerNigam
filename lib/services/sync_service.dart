@@ -6,7 +6,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/app_logger.dart';
 import '../database/app_database.dart';
+import '../models/bill.dart' as model;
 import '../state/database_providers.dart';
+import '../state/service_providers.dart';
+import 'payment_proof_storage_service.dart';
 import 'supabase_service.dart';
 
 /// Represents a pending sync operation
@@ -78,6 +81,8 @@ class SyncService extends StateNotifier<SyncStatus> {
 
   AppDatabase get _database => _ref.read(appDatabaseProvider);
   SupabaseService get _supabaseService => _ref.read(supabaseServiceProvider);
+  PaymentProofStorageService get _paymentProofStorageService =>
+      _ref.read(paymentProofStorageServiceProvider);
   SupabaseClient? get _client => _supabaseService.client;
 
   void _init() {
@@ -308,30 +313,10 @@ class SyncService extends StateNotifier<SyncStatus> {
     final payments = await _database.select(_database.payments).get();
     if (payments.isNotEmpty) {
       try {
-        final paymentData =
-            payments
-                .map(
-                  (payment) => {
-                    'id': payment.id,
-                    'bill_id': payment.billId,
-                    'payment_date': payment.paymentDate.toIso8601String(),
-                    'amount_paid': payment.amountPaid,
-                    'paid_date': payment.paidDate?.toIso8601String(),
-                    'transaction_no': payment.transactionNo,
-                    'due_release_date':
-                        payment.dueReleaseDate?.toIso8601String(),
-                    'invoice_no': payment.invoiceNo,
-                    'invoice_date': payment.invoiceDate?.toIso8601String(),
-                    'work_order_no': payment.workOrderNo,
-                    'work_order_date': payment.workOrderDate?.toIso8601String(),
-                    'consignment_name': payment.consignmentName,
-                    'proof_path': payment.proofPath,
-                    'remarks': payment.remarks,
-                    'last_edited': payment.lastEdited.toIso8601String(),
-                    'created_at': payment.createdAt.toIso8601String(),
-                  },
-                )
-                .toList();
+        final paymentData = <Map<String, dynamic>>[];
+        for (final payment in payments) {
+          paymentData.add(await _paymentToCloudMap(_mapDatabasePayment(payment)));
+        }
         await _client!.from('payments').upsert(paymentData, onConflict: 'id');
       } catch (e) {
         await _logger.logWarning(
@@ -1018,7 +1003,7 @@ class SyncService extends StateNotifier<SyncStatus> {
   }
 
   /// Push a single payment to server
-  Future<void> pushPayment(Payment payment) async {
+  Future<void> pushPayment(model.Payment payment) async {
     if (!_supabaseService.isInitialized || _client == null) {
       queueOperation(
         SyncOperation(
@@ -1040,15 +1025,7 @@ class SyncService extends StateNotifier<SyncStatus> {
     }
 
     try {
-      await _client!.from('payments').upsert({
-        'id': payment.id,
-        'bill_id': payment.billId,
-        'payment_date': payment.paymentDate.toIso8601String(),
-        'amount_paid': payment.amountPaid,
-        'transaction_no': payment.transactionNo,
-        'remarks': payment.remarks,
-        'created_at': payment.createdAt.toIso8601String(),
-      });
+      await _client!.from('payments').upsert(await _paymentToCloudMap(payment));
     } catch (e) {
       await _logger.logWarning(
         'Failed to push payment: $e',
@@ -1178,6 +1155,13 @@ class SyncService extends StateNotifier<SyncStatus> {
     }
 
     try {
+      final localPayment = await _ref.read(paymentsDaoProvider).getPaymentById(
+        paymentId,
+      );
+      if (localPayment != null) {
+        await _paymentProofStorageService.deletePaymentProof(localPayment);
+      }
+
       await _client!.from('payments').delete().eq('id', paymentId);
 
       await _logger.logInfo(
@@ -1201,6 +1185,68 @@ class SyncService extends StateNotifier<SyncStatus> {
       );
       return false;
     }
+  }
+
+  Future<Map<String, dynamic>> _paymentToCloudMap(model.Payment payment) async {
+    String? proofPath = payment.proofPath;
+
+    if (proofPath != null && proofPath.isNotEmpty && payment.id != null) {
+      try {
+        final uploadedPath = await _paymentProofStorageService.uploadPaymentProof(
+          payment,
+        );
+        if (uploadedPath != null && uploadedPath.isNotEmpty) {
+          proofPath = uploadedPath;
+          final paymentsDao = _ref.read(paymentsDaoProvider);
+          await paymentsDao.setPaymentProofPath(payment.id!, uploadedPath);
+        }
+      } catch (e) {
+        await _logger.logWarning(
+          'Failed to upload proof for payment ${payment.id}: $e',
+          operation: 'payment-proof:upload',
+        );
+      }
+    }
+
+    return {
+      'id': payment.id,
+      'bill_id': payment.billId,
+      'payment_date': payment.paymentDate.toIso8601String(),
+      'amount_paid': payment.amountPaid,
+      'paid_date': payment.paidDate?.toIso8601String(),
+      'transaction_no': payment.transactionNo,
+      'due_release_date': payment.dueReleaseDate?.toIso8601String(),
+      'invoice_no': payment.invoiceNo,
+      'invoice_date': payment.invoiceDate?.toIso8601String(),
+      'work_order_no': payment.workOrderNo,
+      'work_order_date': payment.workOrderDate?.toIso8601String(),
+      'consignment_name': payment.consignmentName,
+      'proof_path': proofPath,
+      'remarks': payment.remarks,
+      'last_edited': payment.lastEdited.toIso8601String(),
+      'created_at': payment.createdAt.toIso8601String(),
+    };
+  }
+
+  model.Payment _mapDatabasePayment(Payment payment) {
+    return model.Payment(
+      id: payment.id,
+      billId: payment.billId,
+      paymentDate: payment.paymentDate,
+      amountPaid: payment.amountPaid,
+      proofPath: payment.proofPath,
+      remarks: payment.remarks,
+      lastEdited: payment.lastEdited,
+      createdAt: payment.createdAt,
+      paidDate: payment.paidDate,
+      transactionNo: payment.transactionNo,
+      dueReleaseDate: payment.dueReleaseDate,
+      invoiceNo: payment.invoiceNo,
+      invoiceDate: payment.invoiceDate,
+      workOrderNo: payment.workOrderNo,
+      workOrderDate: payment.workOrderDate,
+      consignmentName: payment.consignmentName,
+    );
   }
 }
 

@@ -5,9 +5,11 @@ import 'package:intl/intl.dart';
 import '../core/premium_theme.dart';
 import '../models/bill.dart';
 import '../models/payment_record.dart';
+import '../services/sync_service.dart';
 import '../state/database_providers.dart';
 import '../state/firm_providers.dart';
 import '../state/payment_providers.dart';
+import '../state/service_providers.dart';
 import 'comprehensive_payment_form.dart';
 
 enum PaymentFilterRange { all, last30Days, last6Months }
@@ -29,6 +31,7 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
 
   PaymentFilterRange _selectedRange = PaymentFilterRange.all;
   bool _isBusy = false;
+  int? _viewingPaymentId;
 
   @override
   void dispose() {
@@ -396,11 +399,36 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                 Row(
                   children: [
                     if ((record.payment.proofPath ?? '').isNotEmpty)
-                      InfoLabel(
-                        label: 'Proof file',
-                        child: Text(
-                          record.payment.proofPath!,
-                          overflow: TextOverflow.ellipsis,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: InfoLabel(
+                                label: 'Proof file',
+                                child: Text(
+                                  record.payment.proofPath!,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: PremiumTheme.spacingS),
+                            Button(
+                              onPressed:
+                                  (_isBusy ||
+                                          _viewingPaymentId != null ||
+                                          record.payment.id == null)
+                                      ? null
+                                      : () => _viewPaymentProof(record.payment),
+                              child:
+                                  _viewingPaymentId == record.payment.id
+                                      ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: ProgressRing(strokeWidth: 2),
+                                      )
+                                      : const Text('View Proof'),
+                            ),
+                          ],
                         ),
                       ),
                     const Spacer(),
@@ -462,6 +490,29 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
 
   Future<void> _refresh() async {
     ref.invalidate(paymentsForFirmProvider);
+  }
+
+  Future<void> _viewPaymentProof(Payment payment) async {
+    if (payment.id == null || _viewingPaymentId != null) {
+      return;
+    }
+
+    setState(() => _viewingPaymentId = payment.id);
+    try {
+      await ref
+          .read(paymentProofStorageServiceProvider)
+          .openPaymentProof(payment);
+    } catch (e) {
+      _showInfoBar(
+        'Unable to open payment proof',
+        '$e',
+        InfoBarSeverity.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _viewingPaymentId = null);
+      }
+    }
   }
 
   Future<void> _openAddPayment() async {
@@ -640,8 +691,12 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
 
     setState(() => _isBusy = true);
     try {
+      final paymentId = record.payment.id!;
+      await ref.read(syncServiceProvider.notifier).deletePaymentFromCloud(
+        paymentId,
+      );
       final paymentsDao = ref.read(paymentsDaoProvider);
-      await paymentsDao.deletePayment(record.payment.id!);
+      await paymentsDao.deletePayment(paymentId);
       _showInfoBar(
         'Payment removed',
         'The payment entry has been deleted.',

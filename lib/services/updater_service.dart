@@ -19,6 +19,10 @@ class UpdaterService {
     return path.join(getInstallDir(), 'discom_bill_manager.exe');
   }
 
+  static bool _isZipPackage(File file) {
+    return path.extension(file.path).toLowerCase() == '.zip';
+  }
+
   /// Downloads ZIP file with progress reporting
   Stream<double> downloadUpdate(
     String zipUrl,
@@ -72,7 +76,6 @@ class UpdaterService {
       final installDir = getInstallDir();
       final exePath = getExePath();
 
-      // Extract ZIP to temp folder
       final tempDir = Directory.systemTemp;
       final extractDir = Directory(
         path.join(
@@ -81,7 +84,13 @@ class UpdaterService {
         ),
       );
       await extractDir.create(recursive: true);
-      await extractFileToDisk(zipFile.path, extractDir.path);
+
+      if (_isZipPackage(zipFile)) {
+        await extractFileToDisk(zipFile.path, extractDir.path);
+      } else {
+        final targetFile = File(path.join(extractDir.path, 'discom_bill_manager.exe'));
+        await zipFile.copy(targetFile.path);
+      }
 
       // Generate PowerShell updater script
       final scriptContent = _generatePowerShellScript(

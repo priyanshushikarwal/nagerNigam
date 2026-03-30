@@ -26,9 +26,16 @@ class _UpdateAvailableDialogState extends State<UpdateAvailableDialog> {
     });
 
     try {
+      if (widget.updateInfo.packageUrl.isEmpty) {
+        _onDownloadError(
+          'Update metadata is missing a package URL. Check version.json.',
+        );
+        return;
+      }
+
       // Start downloading the update
       await for (final progress in _updaterService.downloadUpdate(
-        widget.updateInfo.zipUrl,
+        widget.updateInfo.packageUrl,
         (downloadedFile) => _onDownloadComplete(downloadedFile),
         (error) => _onDownloadError(error),
       )) {

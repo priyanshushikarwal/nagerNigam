@@ -100,6 +100,12 @@ class _ComprehensiveBillFormDialogState
     }
   }
 
+  void _syncDueDateFromRrDate(DateTime rrDate) {
+    _billDate = rrDate;
+    _dueDate = rrDate.add(const Duration(days: 45));
+    _dueDateController.text = DateFormat('dd-MM-yyyy').format(_dueDate);
+  }
+
   void _initializeControllers() {
     // Helper to format amount: show empty for 0, otherwise show value
     String formatAmount(double? value) {
@@ -187,9 +193,9 @@ class _ComprehensiveBillFormDialogState
       _rrDateController = TextEditingController(
         text: dateFormat.format(widget.bill!.billDate),
       );
-      _dueDate = widget.bill!.dueDate;
+      _dueDate = widget.bill!.billDate.add(const Duration(days: 45));
       _dueDateController = TextEditingController(
-        text: dateFormat.format(widget.bill!.dueDate),
+        text: dateFormat.format(_dueDate),
       );
       _csdReleasedDate = widget.bill!.csdReleasedDate;
       _csdReleasedDateController = TextEditingController(
@@ -418,7 +424,7 @@ class _ComprehensiveBillFormDialogState
     }
     try {
       final dateFormat = DateFormat('dd-MM-yyyy');
-      _billDate = dateFormat.parseStrict(rrDateText);
+      _syncDueDateFromRrDate(dateFormat.parseStrict(rrDateText));
     } catch (_) {
       _showValidationError('RR Date must be in dd-MM-yyyy format');
       return;
@@ -744,7 +750,7 @@ class _ComprehensiveBillFormDialogState
                   isRequired: true,
                   onDateParsed: (date) {
                     if (date != null) {
-                      setState(() => _billDate = date);
+                      setState(() => _syncDueDateFromRrDate(date));
                     }
                   },
                 ),
@@ -960,13 +966,6 @@ class _ComprehensiveBillFormDialogState
                   onDateParsed: (date) {
                     setState(() {
                       _invoiceDate = date;
-                      // Auto-calculate due date as invoice date + 45 days
-                      if (date != null) {
-                        _dueDate = date.add(const Duration(days: 45));
-                        _dueDateController.text = DateFormat(
-                          'dd-MM-yyyy',
-                        ).format(_dueDate);
-                      }
                     });
                   },
                 ),
@@ -974,14 +973,11 @@ class _ComprehensiveBillFormDialogState
               const SizedBox(width: 12),
               Expanded(
                 child: _buildAutoFormatDateField(
-                  label: 'Due Date',
+                  label: 'Due Date (Auto)',
                   controller: _dueDateController,
                   isRequired: true,
-                  onDateParsed: (date) {
-                    if (date != null) {
-                      setState(() => _dueDate = date);
-                    }
-                  },
+                  enabled: false,
+                  onDateParsed: (_) {},
                 ),
               ),
             ],
@@ -1183,13 +1179,14 @@ class _ComprehensiveBillFormDialogState
     required TextEditingController controller,
     required void Function(DateTime?) onDateParsed,
     bool isRequired = false,
+    bool enabled = true,
   }) {
     return InfoLabel(
       label: '$label${isRequired ? ' *' : ''} (ddmmyyyy)',
       child: TextBox(
         controller: controller,
         placeholder: 'e.g. 17012026',
-        enabled: !_isSubmitting,
+        enabled: enabled && !_isSubmitting,
         maxLength: 10,
         onChanged: (value) {
           // Auto-format: 20012005 -> 20-01-2005

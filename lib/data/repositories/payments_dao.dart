@@ -25,6 +25,18 @@ class PaymentsDao {
     return rows.map(_mapPayment).toList();
   }
 
+  Future<Payment?> getPaymentById(int paymentId) async {
+    final row =
+        await (_database.select(_database.payments)
+          ..where((tbl) => tbl.id.equals(paymentId))).getSingleOrNull();
+
+    if (row == null) {
+      return null;
+    }
+
+    return _mapPayment(row);
+  }
+
   Future<List<FirmPaymentRecord>> getPaymentsForFirm(int firmId) async {
     final rows =
         await _database
@@ -253,6 +265,17 @@ class PaymentsDao {
 
     // Update bill payment totals
     await _billsDao.updateBillPaymentTotals(billId);
+  }
+
+  Future<void> setPaymentProofPath(int paymentId, String? proofPath) async {
+    await (_database.update(_database.payments)
+      ..where((tbl) => tbl.id.equals(paymentId))).write(
+      db.PaymentsCompanion(
+        proofPath:
+            proofPath != null ? Value(proofPath) : const Value.absent(),
+        lastEdited: Value(DateTime.now()),
+      ),
+    );
   }
 
   Future<String> _persistProofFile(int billId, String sourcePath) async {

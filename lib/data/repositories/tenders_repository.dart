@@ -74,9 +74,9 @@ class TnDao {
         COUNT(*) AS totalBills,
         SUM(CASE WHEN b.status = 'Paid' THEN 1 ELSE 0 END) AS paidBills,
         SUM(CASE WHEN b.status = 'Partially Paid' THEN 1 ELSE 0 END) AS partiallyPaidBills,
-        SUM(CASE WHEN b.due_date < ? AND b.status != 'Paid' THEN 1 ELSE 0 END) AS overdueBills,
+        SUM(CASE WHEN b.due_date < ? AND b.status = 'Pending' THEN 1 ELSE 0 END) AS overdueBills,
         SUM(CASE WHEN b.status = 'Pending' THEN 1 ELSE 0 END) AS pendingBills,
-        SUM(CASE WHEN b.due_date <= ? AND b.due_date >= ? AND b.status != 'Paid' THEN 1 ELSE 0 END) AS dueSoonBills
+        SUM(CASE WHEN b.due_date <= ? AND b.due_date >= ? AND b.status = 'Pending' THEN 1 ELSE 0 END) AS dueSoonBills
       FROM bills b
       WHERE (b.tender_id = ? OR (b.tender_id IS NULL AND b.tn_number = ? AND b.firm_id = ?))
       ''',

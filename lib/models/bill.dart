@@ -134,21 +134,21 @@ class Bill {
 
   // Check if bill is due soon (within 7 days)
   bool get isDueSoon {
-    final now = DateTime.now();
-    final diff = dueDate.difference(now).inDays;
-    return diff >= 0 && diff <= 7 && status != 'Paid';
+    final diff = daysUntilDue;
+    return status == 'Pending' && diff >= 0 && diff <= 7;
   }
 
   // Check if bill is overdue
   bool get isOverdue {
-    final now = DateTime.now();
-    return dueDate.isBefore(now) && status != 'Paid';
+    return status == 'Pending' && daysUntilDue < 0;
   }
 
   // Days until/past due
   int get daysUntilDue {
     final now = DateTime.now();
-    return dueDate.difference(now).inDays;
+    final today = DateTime(now.year, now.month, now.day);
+    final dueDay = DateTime(dueDate.year, dueDate.month, dueDate.day);
+    return dueDay.difference(today).inDays;
   }
 
   // Auto-calculated fields

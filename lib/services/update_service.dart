@@ -8,25 +8,30 @@ import 'updater_service.dart';
 /// Model for update information from version.json
 class UpdateInfo {
   final String version;
-  final String zipUrl;
+  final String packageUrl;
   final String notes;
   final bool mandatory;
 
   UpdateInfo({
     required this.version,
-    required this.zipUrl,
+    required this.packageUrl,
     required this.notes,
     required this.mandatory,
   });
 
   factory UpdateInfo.fromJson(Map<String, dynamic> json) {
+    final packageUrl =
+        (json['zip_url'] ?? json['url'] ?? json['exe_url'] ?? '').toString();
+
     return UpdateInfo(
-      version: json['version'] ?? '',
-      zipUrl: json['zip_url'] ?? '',
-      notes: json['notes'] ?? '',
-      mandatory: json['mandatory'] ?? false,
+      version: (json['version'] ?? '').toString(),
+      packageUrl: packageUrl,
+      notes: (json['notes'] ?? '').toString(),
+      mandatory: json['mandatory'] == true,
     );
   }
+
+  bool get hasRequiredFields => version.isNotEmpty && packageUrl.isNotEmpty;
 }
 
 /// Service to check for updates and coordinate the download/install process
@@ -48,7 +53,12 @@ class UpdateService {
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
-        return UpdateInfo.fromJson(json);
+        final updateInfo = UpdateInfo.fromJson(json);
+        if (!updateInfo.hasRequiredFields) {
+          print('Update check failed: version.json is missing version or package URL');
+          return null;
+        }
+        return updateInfo;
       } else {
         print('Update check failed: ${response.statusCode}');
       }
@@ -91,7 +101,7 @@ class UpdateService {
       File? downloadedFile;
 
       await for (final progress in updater.downloadUpdate(
-        updateInfo.zipUrl,
+        updateInfo.packageUrl,
         (file) => downloadedFile = file,
         onError,
       )) {
