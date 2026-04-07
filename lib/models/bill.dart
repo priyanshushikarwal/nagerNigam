@@ -20,6 +20,8 @@ class Bill {
   final String csdStatus; // 'Pending' or 'Released'
   final double scrapAmount;
   final double scrapGstAmount;
+  final String? scrapInvoiceNo;
+  final DateTime? scrapInvoiceDate;
   final double mdLdAmount;
   final String mdLdStatus; // 'Pending' or 'Released'
   final DateTime? mdLdReleasedDate;
@@ -90,6 +92,8 @@ class Bill {
     this.csdStatus = 'Pending',
     this.scrapAmount = 0,
     this.scrapGstAmount = 0,
+    this.scrapInvoiceNo,
+    this.scrapInvoiceDate,
     this.mdLdAmount = 0,
     this.mdLdStatus = 'Pending',
     this.mdLdReleasedDate,
@@ -204,6 +208,11 @@ class Bill {
       csdStatus: (map['csd_status'] as String?) ?? 'Pending',
       scrapAmount: (map['scrap_amount'] as num?)?.toDouble() ?? 0,
       scrapGstAmount: (map['scrap_gst_amount'] as num?)?.toDouble() ?? 0,
+      scrapInvoiceNo: map['scrap_invoice_no'] as String?,
+      scrapInvoiceDate:
+          map['scrap_invoice_date'] != null
+              ? DateTime.parse(map['scrap_invoice_date'] as String)
+              : null,
       mdLdAmount: (map['md_ld_amount'] as num?)?.toDouble() ?? 0,
       mdLdStatus: (map['md_ld_status'] as String?) ?? 'Pending',
       mdLdReleasedDate:
@@ -297,6 +306,8 @@ class Bill {
       'csd_status': csdStatus,
       'scrap_amount': scrapAmount,
       'scrap_gst_amount': scrapGstAmount,
+      'scrap_invoice_no': scrapInvoiceNo,
+      'scrap_invoice_date': scrapInvoiceDate?.toIso8601String(),
       'md_ld_amount': mdLdAmount,
       'md_ld_status': mdLdStatus,
       'md_ld_released_date': mdLdReleasedDate?.toIso8601String(),
@@ -357,6 +368,8 @@ class Bill {
     String? csdStatus,
     double? scrapAmount,
     double? scrapGstAmount,
+    String? scrapInvoiceNo,
+    DateTime? scrapInvoiceDate,
     double? mdLdAmount,
     String? mdLdStatus,
     DateTime? mdLdReleasedDate,
@@ -418,6 +431,8 @@ class Bill {
       csdStatus: csdStatus ?? this.csdStatus,
       scrapAmount: scrapAmount ?? this.scrapAmount,
       scrapGstAmount: scrapGstAmount ?? this.scrapGstAmount,
+      scrapInvoiceNo: scrapInvoiceNo ?? this.scrapInvoiceNo,
+      scrapInvoiceDate: scrapInvoiceDate ?? this.scrapInvoiceDate,
       mdLdAmount: mdLdAmount ?? this.mdLdAmount,
       mdLdStatus: mdLdStatus ?? this.mdLdStatus,
       mdLdReleasedDate: mdLdReleasedDate ?? this.mdLdReleasedDate,

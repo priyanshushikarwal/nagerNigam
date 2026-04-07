@@ -1,9 +1,10 @@
 import '../data/repositories/bills_repository.dart';
 import '../database/app_database.dart' as db;
 import '../models/bill.dart';
+import 'global_id_service.dart';
 
 class BillService {
-  BillService() : _repository = BillsDao(_database);
+  BillService() : _repository = BillsDao(_database, GlobalIdService.instance);
 
   static final db.AppDatabase _database = db.AppDatabase();
   final BillsDao _repository;

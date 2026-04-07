@@ -7,6 +7,7 @@ class BillExcelView extends StatelessWidget {
   final Bill bill;
   final Firm? firm;
   final List<Payment> payments;
+  final String? pvBillReferenceText;
   final VoidCallback? onExportPdf;
 
   const BillExcelView({
@@ -14,6 +15,7 @@ class BillExcelView extends StatelessWidget {
     required this.bill,
     this.firm,
     this.payments = const [],
+    this.pvBillReferenceText,
     this.onExportPdf,
   });
 
@@ -108,6 +110,11 @@ class BillExcelView extends StatelessWidget {
                           : '-',
                     ),
                     _buildDetailRow('Invoice No.', bill.invoiceNo ?? '-'),
+                    if (bill.invoiceType != 'PV Invoice')
+                      _buildDetailRow(
+                        'PV Bill No.',
+                        pvBillReferenceText ?? 'Not Created',
+                      ),
                     _buildDetailRow(
                       'Invoice Date',
                       bill.invoiceDate != null
@@ -248,11 +255,13 @@ class BillExcelView extends StatelessWidget {
           Table(
             columnWidths: const {
               0: FlexColumnWidth(1), // Scrap Amount
-              1: FlexColumnWidth(1), // Scrap GST
-              2: FlexColumnWidth(1), // TDS
-              3: FlexColumnWidth(1), // TCS
-              4: FlexColumnWidth(1), // GST TDS
-              5: FlexColumnWidth(1), // MD Amount
+              1: FlexColumnWidth(1), // Scrap Invoice No
+              2: FlexColumnWidth(1), // Scrap Invoice Date
+              3: FlexColumnWidth(1), // Scrap GST
+              4: FlexColumnWidth(1), // TDS
+              5: FlexColumnWidth(1), // TCS
+              6: FlexColumnWidth(1), // GST TDS
+              7: FlexColumnWidth(1), // MD Amount
             },
             border: TableBorder.all(color: Colors.black, width: 1),
             children: [
@@ -261,6 +270,8 @@ class BillExcelView extends StatelessWidget {
                 decoration: const BoxDecoration(color: Colors.white),
                 children: [
                   _buildHeaderCell('Scrap Amount'),
+                  _buildHeaderCell('Scrap Invoice No.'),
+                  _buildHeaderCell('Scrap Invoice Date'),
                   _buildHeaderCell('Scrap GST'),
                   _buildHeaderCell('TDS (I.TAX)'),
                   _buildHeaderCell('TCS'),
@@ -278,6 +289,12 @@ class BillExcelView extends StatelessWidget {
                         bill.scrapAmount > 0
                             ? const Color(0xFFFFF3CD)
                             : Colors.white,
+                  ),
+                  _buildDataCell(bill.scrapInvoiceNo ?? '-'),
+                  _buildDataCell(
+                    bill.scrapInvoiceDate != null
+                        ? dateFormat.format(bill.scrapInvoiceDate!)
+                        : '-',
                   ),
                   _buildDataCell(
                     currencyFormat.format(bill.scrapGstAmount),

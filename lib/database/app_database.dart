@@ -97,6 +97,9 @@ class Bills extends Table {
   RealColumn get scrapAmount => real().withDefault(const Constant(0.0))();
   RealColumn get scrapGstAmount =>
       real().named('scrap_gst_amount').withDefault(const Constant(0.0))();
+  TextColumn get scrapInvoiceNo => text().named('scrap_invoice_no').nullable()();
+  DateTimeColumn get scrapInvoiceDate =>
+      dateTime().named('scrap_invoice_date').nullable()();
   RealColumn get mdLdAmount =>
       real().named('md_ld_amount').withDefault(const Constant(0.0))();
   TextColumn get mdLdStatus =>
@@ -196,7 +199,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 15;
+  int get schemaVersion => 16;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -505,6 +508,20 @@ class AppDatabase extends _$AppDatabase {
         await addSafe('d_meter_box_remark', "TEXT");
         await addSafe('md_npv_remark', "TEXT");
         await addSafe('empty_oil_drum_remark', "TEXT");
+      }
+      if (from < 16) {
+        Future<void> addSafe(String col, String def) async {
+          final res =
+              await customSelect(
+                "SELECT COUNT(*) as count FROM pragma_table_info('bills') WHERE name='$col'",
+              ).getSingle();
+          if (res.data['count'] == 0) {
+            await customStatement("ALTER TABLE bills ADD COLUMN $col $def");
+          }
+        }
+
+        await addSafe('scrap_invoice_no', "TEXT");
+        await addSafe('scrap_invoice_date', "INTEGER");
       }
     },
     beforeOpen: (details) async {

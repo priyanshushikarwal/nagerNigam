@@ -7,7 +7,8 @@ import 'database_providers.dart';
 // ClientFirmsDao provider
 final clientFirmsDaoProvider = Provider<ClientFirmsDao>((ref) {
   final database = ref.watch(appDatabaseProvider);
-  return ClientFirmsDao(database);
+  final idService = ref.watch(globalIdServiceProvider);
+  return ClientFirmsDao(database, idService);
 });
 
 // All client firms provider

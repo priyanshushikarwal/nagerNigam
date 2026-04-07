@@ -19,7 +19,8 @@ class BillsScreen extends ConsumerStatefulWidget {
   ConsumerState<BillsScreen> createState() => _BillsScreenState();
 }
 
-class _BillsScreenState extends ConsumerState<BillsScreen> {
+class _BillsScreenState extends ConsumerState<BillsScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _searchController = TextEditingController();
 
   List<Bill> _bills = [];
@@ -35,13 +36,45 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadBills();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _triggerStartupRefreshes();
+    });
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _triggerStartupRefreshes();
+    }
+  }
+
+  Future<void> _triggerStartupRefreshes() async {
+    if (mounted) {
+      await _loadBills();
+    }
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        _loadBills();
+      }
+    });
+
+    try {
+      await ref.read(syncServiceProvider.notifier).syncAll();
+    } catch (_) {
+      // Keep local data available even if sync fails.
+    }
+    if (mounted) {
+      await _loadBills();
+    }
   }
 
   Future<void> _loadBills() async {
@@ -365,6 +398,13 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
     // Fetch payments for this bill
     final paymentsDao = ref.read(paymentsDaoProvider);
     final payments = await paymentsDao.getPaymentsByBill(bill.id!);
+    final relatedPvBills = await billsDao.getRelatedPvBillsForJobBill(bill.id!);
+    final pvBillReferenceText =
+        relatedPvBills.isEmpty
+            ? 'Not Created'
+            : relatedPvBills
+                .map((pvBill) => pvBill.billNo ?? pvBill.invoiceNo ?? '-')
+                .join(', ');
 
     // Get current firm details
     final firm = ref.read(selectedFirmProvider);
@@ -389,6 +429,7 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                 bill: freshBill,
                 firm: firm,
                 payments: payments,
+                pvBillReferenceText: pvBillReferenceText,
                 onExportPdf: () async {
                   final pdfService = ref.read(pdfServiceProvider);
                   try {
@@ -760,6 +801,10 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                     ),
                     Expanded(
                       flex: 2,
+                      child: Text('PV Bill', style: _headerStyle()),
+                    ),
+                    Expanded(
+                      flex: 2,
                       child: Text('RR Date', style: _headerStyle()),
                     ),
                     Expanded(
@@ -827,6 +872,37 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
         ],
       ),
     );
+  }
+
+  String _pvBillReferenceText(Bill bill) {
+    if (bill.invoiceType == 'PV Invoice') {
+      return '-';
+    }
+
+    final jobInvoiceNo = bill.invoiceNo?.trim();
+    if (jobInvoiceNo == null || jobInvoiceNo.isEmpty) {
+      return 'Not Created';
+    }
+
+    final needle = jobInvoiceNo.toLowerCase();
+    final relatedPvBills =
+        _bills.where((candidate) {
+          if (candidate.id == bill.id || candidate.invoiceType != 'PV Invoice') {
+            return false;
+          }
+
+          final pvInvoiceNo = (candidate.invoiceNo ?? '').toLowerCase();
+          final pvRemarks = (candidate.remarks ?? '').toLowerCase();
+          return pvInvoiceNo.contains(needle) || pvRemarks.contains(needle);
+        }).toList();
+
+    if (relatedPvBills.isEmpty) {
+      return 'Not Created';
+    }
+
+    return relatedPvBills
+        .map((pvBill) => pvBill.billNo ?? pvBill.invoiceNo ?? '-')
+        .join(', ');
   }
 
   Widget _buildBillRow(Bill bill) {
@@ -929,6 +1005,15 @@ class _BillsScreenState extends ConsumerState<BillsScreen> {
                 child: Text(
                   bill.invoiceType ?? '-',
                   overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  _pvBillReferenceText(bill),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
+                  style: FluentTheme.of(context).typography.caption,
                 ),
               ),
               Expanded(flex: 2, child: Text(_dateFormat.format(bill.billDate))),

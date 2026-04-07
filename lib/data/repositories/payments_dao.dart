@@ -7,13 +7,15 @@ import 'package:path_provider/path_provider.dart';
 import '../../database/app_database.dart' as db;
 import '../../models/bill.dart';
 import '../../models/payment_record.dart';
+import '../../services/global_id_service.dart';
 import 'bills_repository.dart';
 
 class PaymentsDao {
-  PaymentsDao(this._database, this._billsDao);
+  PaymentsDao(this._database, this._billsDao, this._idService);
 
   final db.AppDatabase _database;
   final BillsDao _billsDao;
+  final GlobalIdService _idService;
 
   Future<List<Payment>> getPaymentsByBill(int billId) async {
     final rows =
@@ -130,12 +132,14 @@ class PaymentsDao {
     required Payment payment,
     String? proofSourcePath,
   }) async {
+    final id = await _idService.nextId();
     final proofPath =
         proofSourcePath != null
             ? await _persistProofFile(payment.billId, proofSourcePath)
             : payment.proofPath;
 
     final companion = db.PaymentsCompanion.insert(
+      id: Value(id),
       billId: payment.billId,
       paymentDate: payment.paymentDate,
       amountPaid: Value(payment.amountPaid),
@@ -259,9 +263,14 @@ class PaymentsDao {
     }
 
     final billId = row.billId;
+    final isCsdPayment = (row.remarks ?? '').trim().toLowerCase() == 'csd received';
 
     await (_database.delete(_database.payments)
       ..where((tbl) => tbl.id.equals(paymentId))).go();
+
+    if (isCsdPayment) {
+      await _billsDao.clearCsdReleaseState(billId);
+    }
 
     // Update bill payment totals
     await _billsDao.updateBillPaymentTotals(billId);

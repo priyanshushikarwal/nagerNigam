@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/app_logger.dart';
@@ -35,6 +37,16 @@ class SyncOperation {
     'timestamp': timestamp.toIso8601String(),
     'localId': localId,
   };
+
+  factory SyncOperation.fromJson(Map<String, dynamic> json) {
+    return SyncOperation(
+      table: json['table'] as String,
+      operation: json['operation'] as String,
+      data: Map<String, dynamic>.from(json['data'] as Map),
+      timestamp: DateTime.parse(json['timestamp'] as String),
+      localId: json['localId'] as String?,
+    );
+  }
 }
 
 /// Sync status for UI feedback
@@ -78,6 +90,11 @@ class SyncService extends StateNotifier<SyncStatus> {
   Timer? _syncTimer;
   StreamSubscription? _realtimeSubscription;
   final List<SyncOperation> _pendingOperations = [];
+  static const String _pendingOpsStorageKey = 'sync_pending_operations';
+  static const String _deleteTombstonesStorageKey = 'sync_delete_tombstones';
+  late final Future<void> _pendingOpsLoaded;
+  late final Future<void> _deleteTombstonesLoaded;
+  final Map<String, Set<int>> _deleteTombstones = {};
 
   AppDatabase get _database => _ref.read(appDatabaseProvider);
   SupabaseService get _supabaseService => _ref.read(supabaseServiceProvider);
@@ -86,6 +103,9 @@ class SyncService extends StateNotifier<SyncStatus> {
   SupabaseClient? get _client => _supabaseService.client;
 
   void _init() {
+    _pendingOpsLoaded = _loadPendingOperations();
+    _deleteTombstonesLoaded = _loadDeleteTombstones();
+
     // Start periodic sync every 30 seconds when online
     _syncTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (_ref.read(isOnlineProvider) && _supabaseService.isInitialized) {
@@ -103,6 +123,9 @@ class SyncService extends StateNotifier<SyncStatus> {
 
   /// Perform a full sync with the server
   Future<void> syncAll() async {
+    await _pendingOpsLoaded;
+    await _deleteTombstonesLoaded;
+
     if (!_supabaseService.isInitialized || !_supabaseService.isEnabled) {
       await _logger.logWarning(
         'Sync skipped: Supabase not initialized or not enabled',
@@ -274,6 +297,9 @@ class SyncService extends StateNotifier<SyncStatus> {
                     'csd_status': bill.csdStatus,
                     'scrap_amount': bill.scrapAmount,
                     'scrap_gst_amount': bill.scrapGstAmount,
+                    'scrap_invoice_no': bill.scrapInvoiceNo,
+                    'scrap_invoice_date':
+                        bill.scrapInvoiceDate?.toIso8601String(),
                     'md_ld_amount': bill.mdLdAmount,
                     'empty_oil_issued': bill.emptyOilIssued,
                     'empty_oil_returned': bill.emptyOilReturned,
@@ -335,6 +361,13 @@ class SyncService extends StateNotifier<SyncStatus> {
   /// Queue a local change for sync
   void queueOperation(SyncOperation operation) {
     _pendingOperations.add(operation);
+    if (operation.operation == 'delete') {
+      final id = operation.data['id'] as int?;
+      if (id != null) {
+        _addDeleteTombstone(operation.table, id);
+      }
+    }
+    unawaited(_persistPendingOperations());
     state = state.copyWith(pendingOperations: _pendingOperations.length);
 
     // Try to sync immediately if online
@@ -366,6 +399,13 @@ class SyncService extends StateNotifier<SyncStatus> {
             break;
         }
         _pendingOperations.remove(op);
+        if (op.operation == 'delete') {
+          final id = op.data['id'] as int?;
+          if (id != null) {
+            _removeDeleteTombstone(op.table, id);
+          }
+        }
+        unawaited(_persistPendingOperations());
       } catch (e) {
         await _logger.logWarning(
           'Failed to push operation: ${op.table} ${op.operation}',
@@ -375,6 +415,231 @@ class SyncService extends StateNotifier<SyncStatus> {
     }
 
     state = state.copyWith(pendingOperations: _pendingOperations.length);
+  }
+
+  Future<void> _loadPendingOperations() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString(_pendingOpsStorageKey);
+      if (jsonString == null || jsonString.isEmpty) {
+        return;
+      }
+
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! List) {
+        await prefs.remove(_pendingOpsStorageKey);
+        return;
+      }
+
+      final loadedOperations =
+          decoded
+              .whereType<Map>()
+              .map(
+                (item) =>
+                    SyncOperation.fromJson(Map<String, dynamic>.from(item)),
+              )
+              .toList();
+
+      // Preserve operations queued in-memory before async load completed.
+      final inMemoryOperations = List<SyncOperation>.from(_pendingOperations);
+      _pendingOperations
+        ..clear()
+        ..addAll(loadedOperations)
+        ..addAll(inMemoryOperations);
+
+      state = state.copyWith(pendingOperations: _pendingOperations.length);
+      await _logger.logInfo(
+        'Loaded ${_pendingOperations.length} pending sync operations',
+        operation: 'sync:pending:load',
+      );
+    } catch (e) {
+      await _logger.logWarning(
+        'Failed to load pending sync operations: $e',
+        operation: 'sync:pending:load',
+      );
+    }
+  }
+
+  Future<void> _persistPendingOperations() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_pendingOperations.isEmpty) {
+        await prefs.remove(_pendingOpsStorageKey);
+        return;
+      }
+
+      final jsonString = jsonEncode(
+        _pendingOperations.map((op) => op.toJson()).toList(),
+      );
+      await prefs.setString(_pendingOpsStorageKey, jsonString);
+    } catch (e) {
+      await _logger.logWarning(
+        'Failed to persist pending sync operations: $e',
+        operation: 'sync:pending:save',
+      );
+    }
+  }
+
+  Future<void> _loadDeleteTombstones() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonString = prefs.getString(_deleteTombstonesStorageKey);
+      if (jsonString == null || jsonString.isEmpty) {
+        return;
+      }
+
+      final decoded = jsonDecode(jsonString);
+      if (decoded is! Map) {
+        await prefs.remove(_deleteTombstonesStorageKey);
+        return;
+      }
+
+      _deleteTombstones.clear();
+      decoded.forEach((key, value) {
+        if (key is String && value is List) {
+          _deleteTombstones[key] = value.whereType<num>().map((e) => e.toInt()).toSet();
+        }
+      });
+    } catch (e) {
+      await _logger.logWarning(
+        'Failed to load delete tombstones: $e',
+        operation: 'sync:tombstones:load',
+      );
+    }
+  }
+
+  Future<void> _persistDeleteTombstones() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (_deleteTombstones.isEmpty) {
+        await prefs.remove(_deleteTombstonesStorageKey);
+        return;
+      }
+
+      final jsonString = jsonEncode(
+        _deleteTombstones.map(
+          (table, ids) => MapEntry(table, ids.toList(growable: false)),
+        ),
+      );
+      await prefs.setString(_deleteTombstonesStorageKey, jsonString);
+    } catch (e) {
+      await _logger.logWarning(
+        'Failed to persist delete tombstones: $e',
+        operation: 'sync:tombstones:save',
+      );
+    }
+  }
+
+  void _addDeleteTombstone(String table, int id) {
+    final set = _deleteTombstones.putIfAbsent(table, () => <int>{});
+    if (set.add(id)) {
+      unawaited(_persistDeleteTombstones());
+    }
+  }
+
+  void _removeDeleteTombstone(String table, int id) {
+    final set = _deleteTombstones[table];
+    if (set == null) {
+      return;
+    }
+
+    if (set.remove(id)) {
+      if (set.isEmpty) {
+        _deleteTombstones.remove(table);
+      }
+      unawaited(_persistDeleteTombstones());
+    }
+  }
+
+  bool _isDeletedTombstoned(String table, int id) {
+    return _deleteTombstones[table]?.contains(id) ?? false;
+  }
+
+  Future<void> _upsertLocalFirm(Map<String, dynamic> data) async {
+    await _database.customInsert(
+      '''INSERT INTO firms (id, name, code, description, address, contact_no, gst_no, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name=excluded.name,
+           code=excluded.code,
+           description=excluded.description,
+           address=excluded.address,
+           contact_no=excluded.contact_no,
+           gst_no=excluded.gst_no,
+           created_at=excluded.created_at''',
+      variables: [
+        Variable.withInt(data['id'] as int),
+        Variable.withString(data['name'] as String),
+        Variable.withString(data['code'] as String),
+        data['description'] != null
+            ? Variable.withString(data['description'] as String)
+            : const Variable(null),
+        data['address'] != null
+            ? Variable.withString(data['address'] as String)
+            : const Variable(null),
+        data['contact_no'] != null
+            ? Variable.withString(data['contact_no'] as String)
+            : const Variable(null),
+        data['gst_no'] != null
+            ? Variable.withString(data['gst_no'] as String)
+            : const Variable(null),
+        Variable.withDateTime(DateTime.parse(data['created_at'] as String)),
+      ],
+    );
+  }
+
+  Future<void> _upsertLocalClientFirm(Map<String, dynamic> data) async {
+    await _database.customInsert(
+      '''INSERT INTO client_firms (id, firm_name, address, contact_no, gst_no, created_at)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           firm_name=excluded.firm_name,
+           address=excluded.address,
+           contact_no=excluded.contact_no,
+           gst_no=excluded.gst_no,
+           created_at=excluded.created_at''',
+      variables: [
+        Variable.withInt(data['id'] as int),
+        Variable.withString(data['firm_name'] as String),
+        data['address'] != null
+            ? Variable.withString(data['address'] as String)
+            : const Variable(null),
+        data['contact_no'] != null
+            ? Variable.withString(data['contact_no'] as String)
+            : const Variable(null),
+        data['gst_no'] != null
+            ? Variable.withString(data['gst_no'] as String)
+            : const Variable(null),
+        Variable.withDateTime(DateTime.parse(data['created_at'] as String)),
+      ],
+    );
+  }
+
+  Future<void> _upsertLocalTender(Map<String, dynamic> data) async {
+    await _database.customInsert(
+      '''INSERT INTO tenders (id, firm_id, tn_number, po_number, work_description, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           firm_id=excluded.firm_id,
+           tn_number=excluded.tn_number,
+           po_number=excluded.po_number,
+           work_description=excluded.work_description,
+           created_at=excluded.created_at,
+           updated_at=excluded.updated_at''',
+      variables: [
+        Variable.withInt(data['id'] as int),
+        Variable.withInt(data['firm_id'] as int),
+        Variable.withString(data['tn_number'] as String),
+        data['po_number'] != null
+            ? Variable.withString(data['po_number'] as String)
+            : const Variable(null),
+        data['work_description'] != null
+            ? Variable.withString(data['work_description'] as String)
+            : const Variable(null),
+        Variable.withDateTime(DateTime.parse(data['created_at'] as String)),
+        Variable.withDateTime(DateTime.parse(data['updated_at'] as String)),
+      ],
+    );
   }
 
   /// Pull firms from server and update local database (batch optimized)
@@ -395,48 +660,21 @@ class SyncService extends StateNotifier<SyncStatus> {
         return;
       }
 
-      // Get all existing firm IDs in one query
-      final existingFirms = await _database.select(_database.firms).get();
-      final existingIds = existingFirms.map((f) => f.id).toSet();
-
-      // Filter to only new firms
-      final newFirms =
-          response
-              .where((row) => !existingIds.contains(row['id'] as int))
-              .toList();
-
-      if (newFirms.isNotEmpty) {
-        // Batch insert all new firms using a single statement
-        for (final data in newFirms) {
-          await _database.customInsert(
-            'INSERT OR IGNORE INTO firms (id, name, code, description, address, contact_no, gst_no, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            variables: [
-              Variable.withInt(data['id'] as int),
-              Variable.withString(data['name'] as String),
-              Variable.withString(data['code'] as String),
-              data['description'] != null
-                  ? Variable.withString(data['description'] as String)
-                  : const Variable(null),
-              data['address'] != null
-                  ? Variable.withString(data['address'] as String)
-                  : const Variable(null),
-              data['contact_no'] != null
-                  ? Variable.withString(data['contact_no'] as String)
-                  : const Variable(null),
-              data['gst_no'] != null
-                  ? Variable.withString(data['gst_no'] as String)
-                  : const Variable(null),
-              Variable.withDateTime(
-                DateTime.parse(data['created_at'] as String),
-              ),
-            ],
-          );
+      var upsertedCount = 0;
+      for (final raw in response) {
+        final data = Map<String, dynamic>.from(raw);
+        final id = data['id'] as int?;
+        if (id == null || _isDeletedTombstoned('firms', id)) {
+          continue;
         }
-        await _logger.logInfo(
-          'Pulled ${newFirms.length} new firms',
-          operation: 'sync:pull',
-        );
+        await _upsertLocalFirm(data);
+        upsertedCount++;
       }
+
+      await _logger.logInfo(
+        'Upserted $upsertedCount firms from cloud',
+        operation: 'sync:pull',
+      );
     } catch (e) {
       await _logger.logWarning(
         'Failed to pull firms: $e',
@@ -457,43 +695,21 @@ class SyncService extends StateNotifier<SyncStatus> {
 
       if (response.isEmpty) return;
 
-      // Get all existing IDs in one query
-      final existing = await _database.select(_database.clientFirms).get();
-      final existingIds = existing.map((f) => f.id).toSet();
-
-      // Filter to only new records
-      final newRecords =
-          response
-              .where((row) => !existingIds.contains(row['id'] as int))
-              .toList();
-
-      if (newRecords.isNotEmpty) {
-        for (final data in newRecords) {
-          await _database.customInsert(
-            'INSERT OR IGNORE INTO client_firms (id, firm_name, address, contact_no, gst_no, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-            variables: [
-              Variable.withInt(data['id'] as int),
-              Variable.withString(data['firm_name'] as String),
-              data['address'] != null
-                  ? Variable.withString(data['address'] as String)
-                  : const Variable(null),
-              data['contact_no'] != null
-                  ? Variable.withString(data['contact_no'] as String)
-                  : const Variable(null),
-              data['gst_no'] != null
-                  ? Variable.withString(data['gst_no'] as String)
-                  : const Variable(null),
-              Variable.withDateTime(
-                DateTime.parse(data['created_at'] as String),
-              ),
-            ],
-          );
+      var upsertedCount = 0;
+      for (final raw in response) {
+        final data = Map<String, dynamic>.from(raw);
+        final id = data['id'] as int?;
+        if (id == null || _isDeletedTombstoned('client_firms', id)) {
+          continue;
         }
-        await _logger.logInfo(
-          'Pulled ${newRecords.length} new client firms',
-          operation: 'sync:pull',
-        );
+        await _upsertLocalClientFirm(data);
+        upsertedCount++;
       }
+
+      await _logger.logInfo(
+        'Upserted $upsertedCount client firms from cloud',
+        operation: 'sync:pull',
+      );
     } catch (e) {
       await _logger.logWarning(
         'Failed to pull client firms: $e',
@@ -514,44 +730,21 @@ class SyncService extends StateNotifier<SyncStatus> {
 
       if (response.isEmpty) return;
 
-      // Get all existing IDs in one query
-      final existing = await _database.select(_database.tenders).get();
-      final existingIds = existing.map((t) => t.id).toSet();
-
-      // Filter to only new records
-      final newRecords =
-          response
-              .where((row) => !existingIds.contains(row['id'] as int))
-              .toList();
-
-      if (newRecords.isNotEmpty) {
-        for (final data in newRecords) {
-          await _database.customInsert(
-            'INSERT OR IGNORE INTO tenders (id, firm_id, tn_number, po_number, work_description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            variables: [
-              Variable.withInt(data['id'] as int),
-              Variable.withInt(data['firm_id'] as int),
-              Variable.withString(data['tn_number'] as String),
-              data['po_number'] != null
-                  ? Variable.withString(data['po_number'] as String)
-                  : const Variable(null),
-              data['work_description'] != null
-                  ? Variable.withString(data['work_description'] as String)
-                  : const Variable(null),
-              Variable.withDateTime(
-                DateTime.parse(data['created_at'] as String),
-              ),
-              Variable.withDateTime(
-                DateTime.parse(data['updated_at'] as String),
-              ),
-            ],
-          );
+      var upsertedCount = 0;
+      for (final raw in response) {
+        final data = Map<String, dynamic>.from(raw);
+        final id = data['id'] as int?;
+        if (id == null || _isDeletedTombstoned('tenders', id)) {
+          continue;
         }
-        await _logger.logInfo(
-          'Pulled ${newRecords.length} new tenders',
-          operation: 'sync:pull',
-        );
+        await _upsertLocalTender(data);
+        upsertedCount++;
       }
+
+      await _logger.logInfo(
+        'Upserted $upsertedCount tenders from cloud',
+        operation: 'sync:pull',
+      );
     } catch (e) {
       await _logger.logWarning(
         'Failed to pull tenders: $e',
@@ -577,31 +770,21 @@ class SyncService extends StateNotifier<SyncStatus> {
 
       if (response.isEmpty) return;
 
-      // Get all existing bill IDs in one query - much faster than individual lookups
-      final existingBills = await _database.select(_database.bills).get();
-      final existingIds = existingBills.map((b) => b.id).toSet();
-
-      // Filter to only new bills
-      final newBills =
-          response
-              .where((row) => !existingIds.contains(row['id'] as int))
-              .toList();
-
-      if (newBills.isNotEmpty) {
-        await _logger.logInfo(
-          'Inserting ${newBills.length} new bills...',
-          operation: 'sync:pull',
-        );
-        for (final data in newBills) {
-          await _insertLocalBill(data);
+      var upsertedCount = 0;
+      for (final raw in response) {
+        final data = Map<String, dynamic>.from(raw);
+        final id = data['id'] as int?;
+        if (id == null || _isDeletedTombstoned('bills', id)) {
+          continue;
         }
-        await _logger.logInfo(
-          'Pulled ${newBills.length} new bills',
-          operation: 'sync:pull',
-        );
-      } else {
-        await _logger.logInfo('No new bills to pull', operation: 'sync:pull');
+        await _insertLocalBill(data);
+        upsertedCount++;
       }
+
+      await _logger.logInfo(
+        'Upserted $upsertedCount bills from cloud',
+        operation: 'sync:pull',
+      );
     } catch (e) {
       await _logger.logWarning(
         'Failed to pull bills: $e',
@@ -610,21 +793,16 @@ class SyncService extends StateNotifier<SyncStatus> {
     }
   }
 
-  /// Insert a bill into local database (used by _pullBills)
+  /// Upsert a bill into local database (used by _pullBills)
   Future<void> _insertLocalBill(Map<String, dynamic> data) async {
     try {
-      final existing =
-          await (_database.select(_database.bills)
-            ..where((b) => b.id.equals(data['id'] as int))).getSingleOrNull();
-
-      if (existing == null) {
-        // Insert new bill with ALL fields to ensure calculations work correctly
-        await _database.customInsert(
-          '''INSERT OR IGNORE INTO bills (
+      // Upsert bill with ALL fields to ensure calculations work correctly.
+      await _database.customInsert(
+        '''INSERT INTO bills (
             id, tender_id, firm_id, supplier_firm_id, client_firm_id,
             tn_number, bill_date, due_date, amount, status,
             invoice_amount, csd_amount, bill_pass_amount, csd_released_date, csd_due_date, csd_status,
-            scrap_amount, scrap_gst_amount, md_ld_amount,
+            scrap_amount, scrap_gst_amount, scrap_invoice_no, scrap_invoice_date, md_ld_amount,
             empty_oil_issued, empty_oil_returned,
             tds_amount, tcs_amount, gst_tds_amount,
             total_paid, due_amount,
@@ -632,107 +810,134 @@ class SyncService extends StateNotifier<SyncStatus> {
             work_order_no, work_order_date, consignment_name,
             lot_no, store_name, d_meter_box, md_npv_amount, empty_oil_drum,
             invoice_type, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-          variables: [
-            Variable.withInt(data['id'] as int),
-            data['tender_id'] != null
-                ? Variable.withInt(data['tender_id'] as int)
-                : const Variable(null),
-            Variable.withInt(data['firm_id'] as int),
-            data['supplier_firm_id'] != null
-                ? Variable.withInt(data['supplier_firm_id'] as int)
-                : const Variable(null),
-            data['client_firm_id'] != null
-                ? Variable.withInt(data['client_firm_id'] as int)
-                : const Variable(null),
-            Variable.withString(data['tn_number'] as String),
-            Variable.withDateTime(DateTime.parse(data['bill_date'] as String)),
-            Variable.withDateTime(DateTime.parse(data['due_date'] as String)),
-            Variable.withReal((data['amount'] as num?)?.toDouble() ?? 0.0),
-            Variable.withString(data['status'] as String? ?? 'Pending'),
-            Variable.withReal(
-              (data['invoice_amount'] as num?)?.toDouble() ?? 0.0,
-            ),
-            Variable.withReal((data['csd_amount'] as num?)?.toDouble() ?? 0.0),
-            Variable.withReal(
-              (data['bill_pass_amount'] as num?)?.toDouble() ?? 0.0,
-            ),
-            data['csd_released_date'] != null
-                ? Variable.withDateTime(
-                  DateTime.parse(data['csd_released_date'] as String),
-                )
-                : const Variable(null),
-            data['csd_due_date'] != null
-                ? Variable.withDateTime(
-                  DateTime.parse(data['csd_due_date'] as String),
-                )
-                : const Variable(null),
-            Variable.withString((data['csd_status'] as String?) ?? 'Pending'),
-            Variable.withReal(
-              (data['scrap_amount'] as num?)?.toDouble() ?? 0.0,
-            ),
-            Variable.withReal(
-              (data['scrap_gst_amount'] as num?)?.toDouble() ?? 0.0,
-            ),
-            Variable.withReal(
-              (data['md_ld_amount'] as num?)?.toDouble() ?? 0.0,
-            ),
-            Variable.withReal(
-              (data['empty_oil_issued'] as num?)?.toDouble() ?? 0.0,
-            ),
-            Variable.withReal(
-              (data['empty_oil_returned'] as num?)?.toDouble() ?? 0.0,
-            ),
-            Variable.withReal((data['tds_amount'] as num?)?.toDouble() ?? 0.0),
-            Variable.withReal((data['tcs_amount'] as num?)?.toDouble() ?? 0.0),
-            Variable.withReal(
-              (data['gst_tds_amount'] as num?)?.toDouble() ?? 0.0,
-            ),
-            Variable.withReal((data['total_paid'] as num?)?.toDouble() ?? 0.0),
-            Variable.withReal((data['due_amount'] as num?)?.toDouble() ?? 0.0),
-            data['remarks'] != null
-                ? Variable.withString(data['remarks'] as String)
-                : const Variable(null),
-            data['invoice_no'] != null
-                ? Variable.withString(data['invoice_no'] as String)
-                : const Variable(null),
-            data['invoice_date'] != null
-                ? Variable.withDateTime(
-                  DateTime.parse(data['invoice_date'] as String),
-                )
-                : const Variable(null),
-            data['work_order_no'] != null
-                ? Variable.withString(data['work_order_no'] as String)
-                : const Variable(null),
-            data['work_order_date'] != null
-                ? Variable.withDateTime(
-                  DateTime.parse(data['work_order_date'] as String),
-                )
-                : const Variable(null),
-            data['consignment_name'] != null
-                ? Variable.withString(data['consignment_name'] as String)
-                : const Variable(null),
-            data['lot_no'] != null
-                ? Variable.withString(data['lot_no'] as String)
-                : const Variable(null),
-            data['store_name'] != null
-                ? Variable.withString(data['store_name'] as String)
-                : const Variable(null),
-            Variable.withReal((data['d_meter_box'] as num?)?.toDouble() ?? 0.0),
-            Variable.withReal(
-              (data['md_npv_amount'] as num?)?.toDouble() ?? 0.0,
-            ),
-            Variable.withReal(
-              (data['empty_oil_drum'] as num?)?.toDouble() ?? 0.0,
-            ),
-            data['invoice_type'] != null
-                ? Variable.withString(data['invoice_type'] as String)
-                : const Variable(null),
-            Variable.withDateTime(DateTime.parse(data['created_at'] as String)),
-            Variable.withDateTime(DateTime.parse(data['updated_at'] as String)),
-          ],
-        );
-      }
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            tender_id=excluded.tender_id,
+            firm_id=excluded.firm_id,
+            supplier_firm_id=excluded.supplier_firm_id,
+            client_firm_id=excluded.client_firm_id,
+            tn_number=excluded.tn_number,
+            bill_date=excluded.bill_date,
+            due_date=excluded.due_date,
+            amount=excluded.amount,
+            status=excluded.status,
+            invoice_amount=excluded.invoice_amount,
+            csd_amount=excluded.csd_amount,
+            bill_pass_amount=excluded.bill_pass_amount,
+            csd_released_date=excluded.csd_released_date,
+            csd_due_date=excluded.csd_due_date,
+            csd_status=excluded.csd_status,
+            scrap_amount=excluded.scrap_amount,
+            scrap_gst_amount=excluded.scrap_gst_amount,
+            scrap_invoice_no=excluded.scrap_invoice_no,
+            scrap_invoice_date=excluded.scrap_invoice_date,
+            md_ld_amount=excluded.md_ld_amount,
+            empty_oil_issued=excluded.empty_oil_issued,
+            empty_oil_returned=excluded.empty_oil_returned,
+            tds_amount=excluded.tds_amount,
+            tcs_amount=excluded.tcs_amount,
+            gst_tds_amount=excluded.gst_tds_amount,
+            total_paid=excluded.total_paid,
+            due_amount=excluded.due_amount,
+            remarks=excluded.remarks,
+            invoice_no=excluded.invoice_no,
+            invoice_date=excluded.invoice_date,
+            work_order_no=excluded.work_order_no,
+            work_order_date=excluded.work_order_date,
+            consignment_name=excluded.consignment_name,
+            lot_no=excluded.lot_no,
+            store_name=excluded.store_name,
+            d_meter_box=excluded.d_meter_box,
+            md_npv_amount=excluded.md_npv_amount,
+            empty_oil_drum=excluded.empty_oil_drum,
+            invoice_type=excluded.invoice_type,
+            created_at=excluded.created_at,
+            updated_at=excluded.updated_at''',
+        variables: [
+          Variable.withInt(data['id'] as int),
+          data['tender_id'] != null
+              ? Variable.withInt(data['tender_id'] as int)
+              : const Variable(null),
+          Variable.withInt(data['firm_id'] as int),
+          data['supplier_firm_id'] != null
+              ? Variable.withInt(data['supplier_firm_id'] as int)
+              : const Variable(null),
+          data['client_firm_id'] != null
+              ? Variable.withInt(data['client_firm_id'] as int)
+              : const Variable(null),
+          Variable.withString(data['tn_number'] as String),
+          Variable.withDateTime(DateTime.parse(data['bill_date'] as String)),
+          Variable.withDateTime(DateTime.parse(data['due_date'] as String)),
+          Variable.withReal((data['amount'] as num?)?.toDouble() ?? 0.0),
+          Variable.withString(data['status'] as String? ?? 'Pending'),
+          Variable.withReal((data['invoice_amount'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['csd_amount'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['bill_pass_amount'] as num?)?.toDouble() ?? 0.0),
+          data['csd_released_date'] != null
+              ? Variable.withDateTime(
+                DateTime.parse(data['csd_released_date'] as String),
+              )
+              : const Variable(null),
+          data['csd_due_date'] != null
+              ? Variable.withDateTime(
+                DateTime.parse(data['csd_due_date'] as String),
+              )
+              : const Variable(null),
+          Variable.withString((data['csd_status'] as String?) ?? 'Pending'),
+          Variable.withReal((data['scrap_amount'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['scrap_gst_amount'] as num?)?.toDouble() ?? 0.0),
+          data['scrap_invoice_no'] != null
+              ? Variable.withString(data['scrap_invoice_no'] as String)
+              : const Variable(null),
+          data['scrap_invoice_date'] != null
+              ? Variable.withDateTime(
+                DateTime.parse(data['scrap_invoice_date'] as String),
+              )
+              : const Variable(null),
+          Variable.withReal((data['md_ld_amount'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['empty_oil_issued'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['empty_oil_returned'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['tds_amount'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['tcs_amount'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['gst_tds_amount'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['total_paid'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['due_amount'] as num?)?.toDouble() ?? 0.0),
+          data['remarks'] != null
+              ? Variable.withString(data['remarks'] as String)
+              : const Variable(null),
+          data['invoice_no'] != null
+              ? Variable.withString(data['invoice_no'] as String)
+              : const Variable(null),
+          data['invoice_date'] != null
+              ? Variable.withDateTime(DateTime.parse(data['invoice_date'] as String))
+              : const Variable(null),
+          data['work_order_no'] != null
+              ? Variable.withString(data['work_order_no'] as String)
+              : const Variable(null),
+          data['work_order_date'] != null
+              ? Variable.withDateTime(
+                DateTime.parse(data['work_order_date'] as String),
+              )
+              : const Variable(null),
+          data['consignment_name'] != null
+              ? Variable.withString(data['consignment_name'] as String)
+              : const Variable(null),
+          data['lot_no'] != null
+              ? Variable.withString(data['lot_no'] as String)
+              : const Variable(null),
+          data['store_name'] != null
+              ? Variable.withString(data['store_name'] as String)
+              : const Variable(null),
+          Variable.withReal((data['d_meter_box'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['md_npv_amount'] as num?)?.toDouble() ?? 0.0),
+          Variable.withReal((data['empty_oil_drum'] as num?)?.toDouble() ?? 0.0),
+          data['invoice_type'] != null
+              ? Variable.withString(data['invoice_type'] as String)
+              : const Variable(null),
+          Variable.withDateTime(DateTime.parse(data['created_at'] as String)),
+          Variable.withDateTime(DateTime.parse(data['updated_at'] as String)),
+        ],
+      );
     } catch (e) {
       await _logger.logWarning(
         'Failed to upsert local bill: $e',
@@ -758,34 +963,21 @@ class SyncService extends StateNotifier<SyncStatus> {
 
       if (response.isEmpty) return;
 
-      // Get all existing payment IDs in one query
-      final existingPayments = await _database.select(_database.payments).get();
-      final existingIds = existingPayments.map((p) => p.id).toSet();
-
-      // Filter to only new payments
-      final newPayments =
-          response
-              .where((row) => !existingIds.contains(row['id'] as int))
-              .toList();
-
-      if (newPayments.isNotEmpty) {
-        await _logger.logInfo(
-          'Inserting ${newPayments.length} new payments...',
-          operation: 'sync:pull',
-        );
-        for (final data in newPayments) {
-          await _insertLocalPayment(data);
+      var upsertedCount = 0;
+      for (final raw in response) {
+        final data = Map<String, dynamic>.from(raw);
+        final id = data['id'] as int?;
+        if (id == null || _isDeletedTombstoned('payments', id)) {
+          continue;
         }
-        await _logger.logInfo(
-          'Pulled ${newPayments.length} new payments',
-          operation: 'sync:pull',
-        );
-      } else {
-        await _logger.logInfo(
-          'No new payments to pull',
-          operation: 'sync:pull',
-        );
+        await _insertLocalPayment(data);
+        upsertedCount++;
       }
+
+      await _logger.logInfo(
+        'Upserted $upsertedCount payments from cloud',
+        operation: 'sync:pull',
+      );
     } catch (e) {
       await _logger.logWarning(
         'Failed to pull payments: $e',
@@ -794,76 +986,79 @@ class SyncService extends StateNotifier<SyncStatus> {
     }
   }
 
-  /// Insert a payment into local database (used by _pullPayments)
+  /// Upsert a payment into local database (used by _pullPayments)
   Future<void> _insertLocalPayment(Map<String, dynamic> data) async {
     try {
-      final existing =
-          await (_database.select(_database.payments)
-            ..where((p) => p.id.equals(data['id'] as int))).getSingleOrNull();
-
-      if (existing == null) {
-        // Insert new payment with ALL fields to ensure data is complete
-        await _database.customInsert(
-          '''INSERT OR IGNORE INTO payments (
+      await _database.customInsert(
+        '''INSERT INTO payments (
             id, bill_id, payment_date, amount_paid,
             paid_date, transaction_no, due_release_date,
             invoice_no, invoice_date, work_order_no, work_order_date,
             consignment_name, proof_path, remarks, last_edited, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-          variables: [
-            Variable.withInt(data['id'] as int),
-            Variable.withInt(data['bill_id'] as int),
-            Variable.withDateTime(
-              DateTime.parse(data['payment_date'] as String),
-            ),
-            Variable.withReal((data['amount_paid'] as num?)?.toDouble() ?? 0.0),
-            data['paid_date'] != null
-                ? Variable.withDateTime(
-                  DateTime.parse(data['paid_date'] as String),
-                )
-                : const Variable(null),
-            data['transaction_no'] != null
-                ? Variable.withString(data['transaction_no'] as String)
-                : const Variable(null),
-            data['due_release_date'] != null
-                ? Variable.withDateTime(
-                  DateTime.parse(data['due_release_date'] as String),
-                )
-                : const Variable(null),
-            data['invoice_no'] != null
-                ? Variable.withString(data['invoice_no'] as String)
-                : const Variable(null),
-            data['invoice_date'] != null
-                ? Variable.withDateTime(
-                  DateTime.parse(data['invoice_date'] as String),
-                )
-                : const Variable(null),
-            data['work_order_no'] != null
-                ? Variable.withString(data['work_order_no'] as String)
-                : const Variable(null),
-            data['work_order_date'] != null
-                ? Variable.withDateTime(
-                  DateTime.parse(data['work_order_date'] as String),
-                )
-                : const Variable(null),
-            data['consignment_name'] != null
-                ? Variable.withString(data['consignment_name'] as String)
-                : const Variable(null),
-            data['proof_path'] != null
-                ? Variable.withString(data['proof_path'] as String)
-                : const Variable(null),
-            data['remarks'] != null
-                ? Variable.withString(data['remarks'] as String)
-                : const Variable(null),
-            Variable.withDateTime(
-              data['last_edited'] != null
-                  ? DateTime.parse(data['last_edited'] as String)
-                  : DateTime.now(),
-            ),
-            Variable.withDateTime(DateTime.parse(data['created_at'] as String)),
-          ],
-        );
-      }
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            bill_id=excluded.bill_id,
+            payment_date=excluded.payment_date,
+            amount_paid=excluded.amount_paid,
+            paid_date=excluded.paid_date,
+            transaction_no=excluded.transaction_no,
+            due_release_date=excluded.due_release_date,
+            invoice_no=excluded.invoice_no,
+            invoice_date=excluded.invoice_date,
+            work_order_no=excluded.work_order_no,
+            work_order_date=excluded.work_order_date,
+            consignment_name=excluded.consignment_name,
+            proof_path=excluded.proof_path,
+            remarks=excluded.remarks,
+            last_edited=excluded.last_edited,
+            created_at=excluded.created_at''',
+        variables: [
+          Variable.withInt(data['id'] as int),
+          Variable.withInt(data['bill_id'] as int),
+          Variable.withDateTime(DateTime.parse(data['payment_date'] as String)),
+          Variable.withReal((data['amount_paid'] as num?)?.toDouble() ?? 0.0),
+          data['paid_date'] != null
+              ? Variable.withDateTime(DateTime.parse(data['paid_date'] as String))
+              : const Variable(null),
+          data['transaction_no'] != null
+              ? Variable.withString(data['transaction_no'] as String)
+              : const Variable(null),
+          data['due_release_date'] != null
+              ? Variable.withDateTime(
+                DateTime.parse(data['due_release_date'] as String),
+              )
+              : const Variable(null),
+          data['invoice_no'] != null
+              ? Variable.withString(data['invoice_no'] as String)
+              : const Variable(null),
+          data['invoice_date'] != null
+              ? Variable.withDateTime(DateTime.parse(data['invoice_date'] as String))
+              : const Variable(null),
+          data['work_order_no'] != null
+              ? Variable.withString(data['work_order_no'] as String)
+              : const Variable(null),
+          data['work_order_date'] != null
+              ? Variable.withDateTime(
+                DateTime.parse(data['work_order_date'] as String),
+              )
+              : const Variable(null),
+          data['consignment_name'] != null
+              ? Variable.withString(data['consignment_name'] as String)
+              : const Variable(null),
+          data['proof_path'] != null
+              ? Variable.withString(data['proof_path'] as String)
+              : const Variable(null),
+          data['remarks'] != null
+              ? Variable.withString(data['remarks'] as String)
+              : const Variable(null),
+          Variable.withDateTime(
+            data['last_edited'] != null
+                ? DateTime.parse(data['last_edited'] as String)
+                : DateTime.now(),
+          ),
+          Variable.withDateTime(DateTime.parse(data['created_at'] as String)),
+        ],
+      );
     } catch (e) {
       await _logger.logWarning(
         'Failed to upsert local payment: $e',
@@ -991,6 +1186,10 @@ class SyncService extends StateNotifier<SyncStatus> {
       'invoice_amount': bill.invoiceAmount,
       'csd_amount': bill.csdAmount,
       'bill_pass_amount': bill.billPassAmount,
+      'scrap_amount': bill.scrapAmount,
+      'scrap_gst_amount': bill.scrapGstAmount,
+      'scrap_invoice_no': bill.scrapInvoiceNo,
+      'scrap_invoice_date': bill.scrapInvoiceDate?.toIso8601String(),
       'status': bill.status,
       'total_paid': bill.totalPaid,
       'due_amount': bill.dueAmount,
@@ -1036,6 +1235,7 @@ class SyncService extends StateNotifier<SyncStatus> {
 
   /// Delete a bill from Supabase
   Future<bool> deleteBillFromCloud(int billId) async {
+    _addDeleteTombstone('bills', billId);
     if (!_supabaseService.isInitialized || _client == null) {
       // Queue the delete operation for later
       queueOperation(
@@ -1064,6 +1264,7 @@ class SyncService extends StateNotifier<SyncStatus> {
         'Deleted bill from cloud: $billId',
         operation: 'sync:delete',
       );
+      _removeDeleteTombstone('bills', billId);
       return true;
     } catch (e) {
       await _logger.logWarning(
@@ -1085,6 +1286,7 @@ class SyncService extends StateNotifier<SyncStatus> {
 
   /// Delete a tender from Supabase
   Future<bool> deleteTenderFromCloud(int tenderId) async {
+    _addDeleteTombstone('tenders', tenderId);
     if (!_supabaseService.isInitialized || _client == null) {
       // Queue the delete operation for later
       queueOperation(
@@ -1116,6 +1318,7 @@ class SyncService extends StateNotifier<SyncStatus> {
         'Deleted tender from cloud: $tenderId',
         operation: 'sync:delete',
       );
+      _removeDeleteTombstone('tenders', tenderId);
       return true;
     } catch (e) {
       await _logger.logWarning(
@@ -1137,6 +1340,7 @@ class SyncService extends StateNotifier<SyncStatus> {
 
   /// Delete a payment from Supabase
   Future<bool> deletePaymentFromCloud(int paymentId) async {
+    _addDeleteTombstone('payments', paymentId);
     if (!_supabaseService.isInitialized || _client == null) {
       // Queue the delete operation for later
       queueOperation(
@@ -1168,6 +1372,7 @@ class SyncService extends StateNotifier<SyncStatus> {
         'Deleted payment from cloud: $paymentId',
         operation: 'sync:delete',
       );
+      _removeDeleteTombstone('payments', paymentId);
       return true;
     } catch (e) {
       await _logger.logWarning(

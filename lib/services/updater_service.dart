@@ -5,8 +5,28 @@ import 'package:archive/archive_io.dart';
 
 /// Service to handle downloading and installing ZIP-based updates
 class UpdaterService {
+  static const _installedVersionFileName = 'installed_version.txt';
+  static const _exeName = 'discom_bill_manager.exe';
+
+  static String? _currentExecutablePath() {
+    try {
+      final resolved = Platform.resolvedExecutable;
+      if (path.basename(resolved).toLowerCase() == _exeName) {
+        return resolved;
+      }
+    } catch (_) {
+      // Fall back to legacy install path resolution below.
+    }
+    return null;
+  }
+
   /// Get the LocalAppData install directory
   static String getInstallDir() {
+    final currentExePath = _currentExecutablePath();
+    if (currentExePath != null) {
+      return path.dirname(currentExePath);
+    }
+
     final localAppData = Platform.environment['LOCALAPPDATA'];
     if (localAppData == null || localAppData.isEmpty) {
       throw Exception('LOCALAPPDATA not found');
@@ -16,7 +36,11 @@ class UpdaterService {
 
   /// Get the installed EXE path
   static String getExePath() {
-    return path.join(getInstallDir(), 'discom_bill_manager.exe');
+    return _currentExecutablePath() ?? path.join(getInstallDir(), _exeName);
+  }
+
+  static String getInstalledVersionFilePath() {
+    return path.join(getInstallDir(), _installedVersionFileName);
   }
 
   static bool _isZipPackage(File file) {
@@ -71,7 +95,10 @@ class UpdaterService {
   }
 
   /// Installs the update: extracts ZIP, writes PowerShell script, launches it, exits app
-  Future<void> installUpdateAndRestart(File zipFile) async {
+  Future<void> installUpdateAndRestart(
+    File zipFile, {
+    String? targetVersion,
+  }) async {
     try {
       final installDir = getInstallDir();
       final exePath = getExePath();
@@ -97,6 +124,7 @@ class UpdaterService {
         exePath,
         installDir,
         extractDir.path,
+        targetVersion,
       );
 
       // Write script to temp
@@ -139,11 +167,15 @@ class UpdaterService {
     String exePath,
     String installDir,
     String extractPath,
+    String? targetVersion,
   ) {
     // Escape paths for PowerShell
     final psExe = exePath.replaceAll('\\', '\\\\');
     final psInstall = installDir.replaceAll('\\', '\\\\');
     final psExtract = extractPath.replaceAll('\\', '\\\\');
+    final psVersionFile =
+        getInstalledVersionFilePath().replaceAll('\\', '\\\\');
+    final escapedTargetVersion = (targetVersion ?? '').replaceAll('"', '`"');
 
     return '''
 # DISCOM Bill Manager Auto-Updater
@@ -152,6 +184,8 @@ class UpdaterService {
 \$exePath = "$psExe"
 \$installDir = "$psInstall"
 \$extractPath = "$psExtract"
+\$versionFile = "$psVersionFile"
+\$targetVersion = "$escapedTargetVersion"
 \$logFile = Join-Path \$installDir "update_log.txt"
 
 function Log {
@@ -260,6 +294,15 @@ try {
         Log "Backup restored"
     }
     exit 1
+}
+
+if (\$targetVersion -ne "") {
+    try {
+        Set-Content -Path \$versionFile -Value \$targetVersion -Encoding UTF8
+        Log "Installed version marker updated to \$targetVersion"
+    } catch {
+        Log "WARNING: Failed to write installed version marker: \$_"
+    }
 }
 
 # Clean up

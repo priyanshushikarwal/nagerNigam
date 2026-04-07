@@ -1976,6 +1976,13 @@ class PdfService {
 
     final firm = await _loadFirm(bill.firmId);
     final payments = await _paymentsDao.getPaymentsByBill(billId);
+    final relatedPvBills = await _billsDao.getRelatedPvBillsForJobBill(billId);
+    final pvBillReferenceText =
+        relatedPvBills.isEmpty
+            ? 'Not Created'
+            : relatedPvBills
+                .map((pvBill) => pvBill.billNo ?? pvBill.invoiceNo ?? '-')
+                .join(', ');
 
     // Sort payments
     payments.sort((a, b) => a.paymentDate.compareTo(b.paymentDate));
@@ -2003,7 +2010,7 @@ class PdfService {
             pw.Divider(thickness: 1, color: PdfColors.grey),
             pw.SizedBox(height: 10), // Reduced from 20
             // 2. Details Grid
-            _buildExcelViewDetailsGrid(bill),
+            _buildExcelViewDetailsGrid(bill, pvBillReferenceText),
             pw.SizedBox(height: 15), // Reduced from 30
             // 3. Title
             pw.Text(
@@ -2085,7 +2092,7 @@ class PdfService {
     );
   }
 
-  pw.Widget _buildExcelViewDetailsGrid(Bill bill) {
+  pw.Widget _buildExcelViewDetailsGrid(Bill bill, String pvBillReferenceText) {
     pw.Widget item(String label, String value) {
       return pw.RichText(
         text: pw.TextSpan(
@@ -2130,6 +2137,10 @@ class PdfService {
               ),
               pw.SizedBox(height: 4),
               item('Invoice No.', bill.invoiceNo ?? '-'),
+              if (bill.invoiceType != 'PV Invoice') ...[
+                pw.SizedBox(height: 4),
+                item('PV Bill No.', pvBillReferenceText),
+              ],
               pw.SizedBox(height: 4),
               item(
                 'Invoice Date',
@@ -2227,16 +2238,20 @@ class PdfService {
       border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
       columnWidths: {
         0: const pw.FlexColumnWidth(1), // Scrap Amount
-        1: const pw.FlexColumnWidth(1), // Scrap GST
-        2: const pw.FlexColumnWidth(1), // TDS
-        3: const pw.FlexColumnWidth(1), // TCS
-        4: const pw.FlexColumnWidth(1), // GST TDS
-        5: const pw.FlexColumnWidth(1), // MD Amount
+        1: const pw.FlexColumnWidth(1), // Scrap Invoice No
+        2: const pw.FlexColumnWidth(1), // Scrap Invoice Date
+        3: const pw.FlexColumnWidth(1), // Scrap GST
+        4: const pw.FlexColumnWidth(1), // TDS
+        5: const pw.FlexColumnWidth(1), // TCS
+        6: const pw.FlexColumnWidth(1), // GST TDS
+        7: const pw.FlexColumnWidth(1), // MD Amount
       },
       children: [
         pw.TableRow(
           children: [
             _buildExcelHeader('Scrap Amount'),
+            _buildExcelHeader('Scrap Invoice No.'),
+            _buildExcelHeader('Scrap Invoice Date'),
             _buildExcelHeader('Scrap GST'),
             _buildExcelHeader('TDS (I.TAX)'),
             _buildExcelHeader('TCS'),
@@ -2249,6 +2264,12 @@ class PdfService {
             _buildExcelCell(
               _indianCurrency.format(bill.scrapAmount),
               color: bill.scrapAmount > 0 ? PdfColors.amber50 : null,
+            ),
+            _buildExcelCell(bill.scrapInvoiceNo ?? '-'),
+            _buildExcelCell(
+              bill.scrapInvoiceDate != null
+                  ? _displayDate.format(bill.scrapInvoiceDate!)
+                  : '-',
             ),
             _buildExcelCell(
               _indianCurrency.format(bill.scrapGstAmount),

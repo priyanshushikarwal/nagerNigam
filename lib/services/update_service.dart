@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:path/path.dart' as path;
 import 'updater_service.dart';
 
 /// Model for update information from version.json
@@ -72,7 +71,24 @@ class UpdateService {
   Future<String> getLocalVersion() async {
     try {
       final info = await PackageInfo.fromPlatform();
-      return info.version;
+      var detectedVersion = info.version;
+
+      try {
+        final installedVersionFile = File(
+          UpdaterService.getInstalledVersionFilePath(),
+        );
+        if (await installedVersionFile.exists()) {
+          final storedVersion = (await installedVersionFile.readAsString()).trim();
+          if (storedVersion.isNotEmpty &&
+              isRemoteGreater(detectedVersion, storedVersion)) {
+            detectedVersion = storedVersion;
+          }
+        }
+      } catch (_) {
+        // Fall back to package version if marker file is unavailable.
+      }
+
+      return detectedVersion;
     } catch (_) {
       return '0.0.0';
     }
@@ -82,10 +98,13 @@ class UpdateService {
   bool isRemoteGreater(String local, String remote) {
     final lv = local.split('.').map((e) => int.tryParse(e) ?? 0).toList();
     final rv = remote.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final maxLength = lv.length > rv.length ? lv.length : rv.length;
 
-    for (int i = 0; i < 3; i++) {
-      if (rv[i] > lv[i]) return true;
-      if (rv[i] < lv[i]) return false;
+    for (int i = 0; i < maxLength; i++) {
+      final localPart = i < lv.length ? lv[i] : 0;
+      final remotePart = i < rv.length ? rv[i] : 0;
+      if (remotePart > localPart) return true;
+      if (remotePart < localPart) return false;
     }
     return false;
   }
@@ -110,7 +129,10 @@ class UpdateService {
 
       // If download completed successfully, install
       if (downloadedFile != null) {
-        await updater.installUpdateAndRestart(downloadedFile!);
+        await updater.installUpdateAndRestart(
+          downloadedFile!,
+          targetVersion: updateInfo.version,
+        );
       }
     } catch (e) {
       onError('Download failed: $e');

@@ -37,6 +37,7 @@ class _ComprehensiveBillFormDialogState
   late TextEditingController _csdAmountController;
   late TextEditingController _scrapAmountController;
   late TextEditingController _scrapGstAmountController;
+  late TextEditingController _scrapInvoiceNoController;
   late TextEditingController _mdLdAmountController;
 
   late TextEditingController _remarksController;
@@ -53,6 +54,7 @@ class _ComprehensiveBillFormDialogState
   late TextEditingController _rrDateController;
   late TextEditingController _workOrderDateController;
   late TextEditingController _invoiceDateController;
+  late TextEditingController _scrapInvoiceDateController;
   late TextEditingController _dueDateController;
   late TextEditingController _csdDueDateController;
   late TextEditingController _csdReleasedDateController;
@@ -75,6 +77,7 @@ class _ComprehensiveBillFormDialogState
   DateTime? _paidDate;
   DateTime? _dueReleaseDate;
   DateTime? _invoiceDate;
+  DateTime? _scrapInvoiceDate;
   DateTime? _workOrderDate;
   String? _proofPath;
   bool _isSubmitting = false;
@@ -130,6 +133,9 @@ class _ComprehensiveBillFormDialogState
     );
     _scrapGstAmountController = TextEditingController(
       text: formatAmount(widget.bill?.scrapGstAmount),
+    );
+    _scrapInvoiceNoController = TextEditingController(
+      text: widget.bill?.scrapInvoiceNo ?? '',
     );
     _mdLdAmountController = TextEditingController(
       text: formatAmount(widget.bill?.mdLdAmount),
@@ -217,6 +223,13 @@ class _ComprehensiveBillFormDialogState
       _invoiceDateController = TextEditingController(
         text: _invoiceDate != null ? dateFormat.format(_invoiceDate!) : '',
       );
+      _scrapInvoiceDate = widget.bill!.scrapInvoiceDate;
+      _scrapInvoiceDateController = TextEditingController(
+        text:
+            _scrapInvoiceDate != null
+                ? dateFormat.format(_scrapInvoiceDate!)
+                : '',
+      );
       _workOrderDate = widget.bill!.workOrderDate;
       _workOrderDateController = TextEditingController(
         text: _workOrderDate != null ? dateFormat.format(_workOrderDate!) : '',
@@ -232,6 +245,7 @@ class _ComprehensiveBillFormDialogState
       _invoiceDateController = TextEditingController(
         text: dateFormat.format(today),
       );
+      _scrapInvoiceDateController = TextEditingController(text: '');
       _dueDate = today.add(const Duration(days: 45));
       _dueDateController = TextEditingController(
         text: dateFormat.format(_dueDate),
@@ -281,6 +295,7 @@ class _ComprehensiveBillFormDialogState
     _csdAmountController.dispose();
     _scrapAmountController.dispose();
     _scrapGstAmountController.dispose();
+    _scrapInvoiceNoController.dispose();
     _mdLdAmountController.dispose();
 
     _remarksController.dispose();
@@ -294,6 +309,7 @@ class _ComprehensiveBillFormDialogState
     _rrDateController.dispose();
     _workOrderDateController.dispose();
     _invoiceDateController.dispose();
+    _scrapInvoiceDateController.dispose();
     _dueDateController.dispose();
     _csdDueDateController.dispose();
     _csdReleasedDateController.dispose();
@@ -461,6 +477,11 @@ class _ComprehensiveBillFormDialogState
         csdStatus: widget.bill?.csdStatus ?? 'Pending',
         scrapAmount: double.tryParse(_scrapAmountController.text) ?? 0,
         scrapGstAmount: double.tryParse(_scrapGstAmountController.text) ?? 0,
+        scrapInvoiceNo:
+            _scrapInvoiceNoController.text.trim().isEmpty
+                ? null
+                : _scrapInvoiceNoController.text.trim(),
+        scrapInvoiceDate: _scrapInvoiceDate,
         mdLdAmount: double.tryParse(_mdLdAmountController.text) ?? 0,
         emptyOilIssued: 0,
         emptyOilReturned: 0,
@@ -1065,6 +1086,30 @@ class _ComprehensiveBillFormDialogState
               ),
               const SizedBox(width: 12),
               Expanded(child: const SizedBox.shrink()),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: InfoLabel(
+                  label: 'Scrap Invoice No.',
+                  child: TextBox(
+                    controller: _scrapInvoiceNoController,
+                    placeholder: 'Enter scrap invoice no.',
+                    enabled: !_isSubmitting,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildAutoFormatDateField(
+                  label: 'Scrap Invoice Date',
+                  controller: _scrapInvoiceDateController,
+                  onDateParsed:
+                      (date) => setState(() => _scrapInvoiceDate = date),
+                ),
+              ),
             ],
           ),
         ],

@@ -27,7 +27,8 @@ class BillDetailsScreen extends ConsumerStatefulWidget {
   ConsumerState<BillDetailsScreen> createState() => _BillDetailsScreenState();
 }
 
-class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
+class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen>
+    with WidgetsBindingObserver {
   final _currencyFormat = NumberFormat.currency(
     locale: 'en_IN',
     symbol: '₹',
@@ -36,7 +37,17 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
   final ScrollController _horizontalScrollController = ScrollController();
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _triggerStartupRefreshes();
+    });
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _horizontalScrollController.dispose();
     super.dispose();
   }
@@ -45,11 +56,45 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
   bool _isExporting = false;
   int? _viewingPaymentId;
 
-  Future<void> _refreshBillDetails() async {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _triggerStartupRefreshes();
+    }
+  }
+
+  void _invalidateBillDetailProviders() {
     ref.invalidate(billByIdProvider(widget.billId));
     ref.invalidate(billWithPaymentsProvider(widget.billId));
     ref.invalidate(paymentsByBillProvider(widget.billId));
     ref.invalidate(paymentsForFirmProvider);
+  }
+
+  Future<void> _triggerStartupRefreshes() async {
+    _invalidateBillDetailProviders();
+    Future.delayed(const Duration(milliseconds: 800), () {
+      if (mounted) {
+        _invalidateBillDetailProviders();
+      }
+    });
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        _invalidateBillDetailProviders();
+      }
+    });
+
+    try {
+      await ref.read(syncServiceProvider.notifier).syncAll();
+      if (mounted) {
+        _invalidateBillDetailProviders();
+      }
+    } catch (_) {
+      // Keep local refresh behavior even if sync fails.
+    }
+  }
+
+  Future<void> _refreshBillDetails() async {
+    _invalidateBillDetailProviders();
 
     if (mounted) {
       _showInfoBar('Bill details refreshed', InfoBarSeverity.success);
@@ -721,7 +766,7 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
     }
   }
 
-  Widget _buildBillInformation(Bill bill) {
+  Widget _buildBillInformation(Bill bill, String pvBillReferenceText) {
     // Total deductions shown in deductions section (excluding CSD and MD which are receivables)
     final totalDeductions =
         bill.tdsAmount +
@@ -803,6 +848,8 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
               'Invoice Type',
               bill.invoiceType?.isNotEmpty == true ? bill.invoiceType! : '-',
             ),
+            if (bill.invoiceType != 'PV Invoice')
+              _buildInfoRow('PV Bill No.', pvBillReferenceText),
             Row(
               children: [
                 Expanded(
@@ -2494,6 +2541,9 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
     final billWithPaymentsAsync = ref.watch(
       billWithPaymentsProvider(widget.billId),
     );
+    final relatedPvBillsAsync = ref.watch(
+      relatedPvBillsForJobBillProvider(widget.billId),
+    );
 
     return ScaffoldPage(
       padding: EdgeInsets.zero,
@@ -2517,6 +2567,16 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
 
           final bill = billWithPayments.bill;
           final payments = billWithPayments.payments;
+          final pvBillReferenceText = relatedPvBillsAsync.maybeWhen(
+            data:
+                (relatedPvBills) =>
+                    relatedPvBills.isEmpty
+                        ? 'Not Created'
+                        : relatedPvBills
+                            .map((pvBill) => pvBill.billNo ?? pvBill.invoiceNo ?? '-')
+                            .join(', '),
+            orElse: () => 'Loading...',
+          );
 
           return Column(
             children: [
@@ -2648,7 +2708,7 @@ class _BillDetailsScreenState extends ConsumerState<BillDetailsScreen> {
                   children: [
                     _buildExcelStyleTable(bill, payments),
                     const SizedBox(height: PremiumTheme.spacingL),
-                    _buildBillInformation(bill),
+                    _buildBillInformation(bill, pvBillReferenceText),
                     const SizedBox(height: PremiumTheme.spacingL),
                     _buildReceivablesSection(bill),
                     const SizedBox(height: PremiumTheme.spacingL),

@@ -2,9 +2,11 @@ import '../data/repositories/tenders_repository.dart';
 import '../database/app_database.dart' as db;
 import '../models/tender.dart';
 import '../models/tn_bill_stats.dart';
+import 'global_id_service.dart';
 
 class TenderService {
-  TenderService() : _tendersRepository = TnDao(_database);
+  TenderService()
+    : _tendersRepository = TnDao(_database, GlobalIdService.instance);
 
   static final db.AppDatabase _database = db.AppDatabase();
   final TnDao _tendersRepository;

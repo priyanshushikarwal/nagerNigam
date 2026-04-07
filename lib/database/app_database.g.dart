@@ -1622,6 +1622,28 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0.0),
   );
+  static const VerificationMeta _scrapInvoiceNoMeta = const VerificationMeta(
+    'scrapInvoiceNo',
+  );
+  @override
+  late final GeneratedColumn<String> scrapInvoiceNo = GeneratedColumn<String>(
+    'scrap_invoice_no',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _scrapInvoiceDateMeta =
+      const VerificationMeta('scrapInvoiceDate');
+  @override
+  late final GeneratedColumn<DateTime> scrapInvoiceDate =
+      GeneratedColumn<DateTime>(
+        'scrap_invoice_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
   static const VerificationMeta _mdLdAmountMeta = const VerificationMeta(
     'mdLdAmount',
   );
@@ -2077,6 +2099,8 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
     csdStatus,
     scrapAmount,
     scrapGstAmount,
+    scrapInvoiceNo,
+    scrapInvoiceDate,
     mdLdAmount,
     mdLdStatus,
     mdLdReleasedDate,
@@ -2256,6 +2280,24 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
         scrapGstAmount.isAcceptableOrUnknown(
           data['scrap_gst_amount']!,
           _scrapGstAmountMeta,
+        ),
+      );
+    }
+    if (data.containsKey('scrap_invoice_no')) {
+      context.handle(
+        _scrapInvoiceNoMeta,
+        scrapInvoiceNo.isAcceptableOrUnknown(
+          data['scrap_invoice_no']!,
+          _scrapInvoiceNoMeta,
+        ),
+      );
+    }
+    if (data.containsKey('scrap_invoice_date')) {
+      context.handle(
+        _scrapInvoiceDateMeta,
+        scrapInvoiceDate.isAcceptableOrUnknown(
+          data['scrap_invoice_date']!,
+          _scrapInvoiceDateMeta,
         ),
       );
     }
@@ -2648,6 +2690,14 @@ class $BillsTable extends Bills with TableInfo<$BillsTable, Bill> {
             DriftSqlType.double,
             data['${effectivePrefix}scrap_gst_amount'],
           )!,
+      scrapInvoiceNo: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}scrap_invoice_no'],
+      ),
+      scrapInvoiceDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scrap_invoice_date'],
+      ),
       mdLdAmount:
           attachedDatabase.typeMapping.read(
             DriftSqlType.double,
@@ -2845,6 +2895,8 @@ class Bill extends DataClass implements Insertable<Bill> {
   final String csdStatus;
   final double scrapAmount;
   final double scrapGstAmount;
+  final String? scrapInvoiceNo;
+  final DateTime? scrapInvoiceDate;
   final double mdLdAmount;
   final String mdLdStatus;
   final DateTime? mdLdReleasedDate;
@@ -2901,6 +2953,8 @@ class Bill extends DataClass implements Insertable<Bill> {
     required this.csdStatus,
     required this.scrapAmount,
     required this.scrapGstAmount,
+    this.scrapInvoiceNo,
+    this.scrapInvoiceDate,
     required this.mdLdAmount,
     required this.mdLdStatus,
     this.mdLdReleasedDate,
@@ -2970,6 +3024,12 @@ class Bill extends DataClass implements Insertable<Bill> {
     map['csd_status'] = Variable<String>(csdStatus);
     map['scrap_amount'] = Variable<double>(scrapAmount);
     map['scrap_gst_amount'] = Variable<double>(scrapGstAmount);
+    if (!nullToAbsent || scrapInvoiceNo != null) {
+      map['scrap_invoice_no'] = Variable<String>(scrapInvoiceNo);
+    }
+    if (!nullToAbsent || scrapInvoiceDate != null) {
+      map['scrap_invoice_date'] = Variable<DateTime>(scrapInvoiceDate);
+    }
     map['md_ld_amount'] = Variable<double>(mdLdAmount);
     map['md_ld_status'] = Variable<String>(mdLdStatus);
     if (!nullToAbsent || mdLdReleasedDate != null) {
@@ -3089,6 +3149,14 @@ class Bill extends DataClass implements Insertable<Bill> {
       csdStatus: Value(csdStatus),
       scrapAmount: Value(scrapAmount),
       scrapGstAmount: Value(scrapGstAmount),
+      scrapInvoiceNo:
+          scrapInvoiceNo == null && nullToAbsent
+              ? const Value.absent()
+              : Value(scrapInvoiceNo),
+      scrapInvoiceDate:
+          scrapInvoiceDate == null && nullToAbsent
+              ? const Value.absent()
+              : Value(scrapInvoiceDate),
       mdLdAmount: Value(mdLdAmount),
       mdLdStatus: Value(mdLdStatus),
       mdLdReleasedDate:
@@ -3211,6 +3279,10 @@ class Bill extends DataClass implements Insertable<Bill> {
       csdStatus: serializer.fromJson<String>(json['csdStatus']),
       scrapAmount: serializer.fromJson<double>(json['scrapAmount']),
       scrapGstAmount: serializer.fromJson<double>(json['scrapGstAmount']),
+      scrapInvoiceNo: serializer.fromJson<String?>(json['scrapInvoiceNo']),
+      scrapInvoiceDate: serializer.fromJson<DateTime?>(
+        json['scrapInvoiceDate'],
+      ),
       mdLdAmount: serializer.fromJson<double>(json['mdLdAmount']),
       mdLdStatus: serializer.fromJson<String>(json['mdLdStatus']),
       mdLdReleasedDate: serializer.fromJson<DateTime?>(
@@ -3284,6 +3356,8 @@ class Bill extends DataClass implements Insertable<Bill> {
       'csdStatus': serializer.toJson<String>(csdStatus),
       'scrapAmount': serializer.toJson<double>(scrapAmount),
       'scrapGstAmount': serializer.toJson<double>(scrapGstAmount),
+      'scrapInvoiceNo': serializer.toJson<String?>(scrapInvoiceNo),
+      'scrapInvoiceDate': serializer.toJson<DateTime?>(scrapInvoiceDate),
       'mdLdAmount': serializer.toJson<double>(mdLdAmount),
       'mdLdStatus': serializer.toJson<String>(mdLdStatus),
       'mdLdReleasedDate': serializer.toJson<DateTime?>(mdLdReleasedDate),
@@ -3347,6 +3421,8 @@ class Bill extends DataClass implements Insertable<Bill> {
     String? csdStatus,
     double? scrapAmount,
     double? scrapGstAmount,
+    Value<String?> scrapInvoiceNo = const Value.absent(),
+    Value<DateTime?> scrapInvoiceDate = const Value.absent(),
     double? mdLdAmount,
     String? mdLdStatus,
     Value<DateTime?> mdLdReleasedDate = const Value.absent(),
@@ -3405,6 +3481,12 @@ class Bill extends DataClass implements Insertable<Bill> {
     csdStatus: csdStatus ?? this.csdStatus,
     scrapAmount: scrapAmount ?? this.scrapAmount,
     scrapGstAmount: scrapGstAmount ?? this.scrapGstAmount,
+    scrapInvoiceNo:
+        scrapInvoiceNo.present ? scrapInvoiceNo.value : this.scrapInvoiceNo,
+    scrapInvoiceDate:
+        scrapInvoiceDate.present
+            ? scrapInvoiceDate.value
+            : this.scrapInvoiceDate,
     mdLdAmount: mdLdAmount ?? this.mdLdAmount,
     mdLdStatus: mdLdStatus ?? this.mdLdStatus,
     mdLdReleasedDate:
@@ -3503,6 +3585,14 @@ class Bill extends DataClass implements Insertable<Bill> {
           data.scrapGstAmount.present
               ? data.scrapGstAmount.value
               : this.scrapGstAmount,
+      scrapInvoiceNo:
+          data.scrapInvoiceNo.present
+              ? data.scrapInvoiceNo.value
+              : this.scrapInvoiceNo,
+      scrapInvoiceDate:
+          data.scrapInvoiceDate.present
+              ? data.scrapInvoiceDate.value
+              : this.scrapInvoiceDate,
       mdLdAmount:
           data.mdLdAmount.present ? data.mdLdAmount.value : this.mdLdAmount,
       mdLdStatus:
@@ -3620,6 +3710,8 @@ class Bill extends DataClass implements Insertable<Bill> {
           ..write('csdStatus: $csdStatus, ')
           ..write('scrapAmount: $scrapAmount, ')
           ..write('scrapGstAmount: $scrapGstAmount, ')
+          ..write('scrapInvoiceNo: $scrapInvoiceNo, ')
+          ..write('scrapInvoiceDate: $scrapInvoiceDate, ')
           ..write('mdLdAmount: $mdLdAmount, ')
           ..write('mdLdStatus: $mdLdStatus, ')
           ..write('mdLdReleasedDate: $mdLdReleasedDate, ')
@@ -3681,6 +3773,8 @@ class Bill extends DataClass implements Insertable<Bill> {
     csdStatus,
     scrapAmount,
     scrapGstAmount,
+    scrapInvoiceNo,
+    scrapInvoiceDate,
     mdLdAmount,
     mdLdStatus,
     mdLdReleasedDate,
@@ -3741,6 +3835,8 @@ class Bill extends DataClass implements Insertable<Bill> {
           other.csdStatus == this.csdStatus &&
           other.scrapAmount == this.scrapAmount &&
           other.scrapGstAmount == this.scrapGstAmount &&
+          other.scrapInvoiceNo == this.scrapInvoiceNo &&
+          other.scrapInvoiceDate == this.scrapInvoiceDate &&
           other.mdLdAmount == this.mdLdAmount &&
           other.mdLdStatus == this.mdLdStatus &&
           other.mdLdReleasedDate == this.mdLdReleasedDate &&
@@ -3799,6 +3895,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
   final Value<String> csdStatus;
   final Value<double> scrapAmount;
   final Value<double> scrapGstAmount;
+  final Value<String?> scrapInvoiceNo;
+  final Value<DateTime?> scrapInvoiceDate;
   final Value<double> mdLdAmount;
   final Value<String> mdLdStatus;
   final Value<DateTime?> mdLdReleasedDate;
@@ -3855,6 +3953,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     this.csdStatus = const Value.absent(),
     this.scrapAmount = const Value.absent(),
     this.scrapGstAmount = const Value.absent(),
+    this.scrapInvoiceNo = const Value.absent(),
+    this.scrapInvoiceDate = const Value.absent(),
     this.mdLdAmount = const Value.absent(),
     this.mdLdStatus = const Value.absent(),
     this.mdLdReleasedDate = const Value.absent(),
@@ -3912,6 +4012,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     this.csdStatus = const Value.absent(),
     this.scrapAmount = const Value.absent(),
     this.scrapGstAmount = const Value.absent(),
+    this.scrapInvoiceNo = const Value.absent(),
+    this.scrapInvoiceDate = const Value.absent(),
     this.mdLdAmount = const Value.absent(),
     this.mdLdStatus = const Value.absent(),
     this.mdLdReleasedDate = const Value.absent(),
@@ -3972,6 +4074,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     Expression<String>? csdStatus,
     Expression<double>? scrapAmount,
     Expression<double>? scrapGstAmount,
+    Expression<String>? scrapInvoiceNo,
+    Expression<DateTime>? scrapInvoiceDate,
     Expression<double>? mdLdAmount,
     Expression<String>? mdLdStatus,
     Expression<DateTime>? mdLdReleasedDate,
@@ -4029,6 +4133,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
       if (csdStatus != null) 'csd_status': csdStatus,
       if (scrapAmount != null) 'scrap_amount': scrapAmount,
       if (scrapGstAmount != null) 'scrap_gst_amount': scrapGstAmount,
+      if (scrapInvoiceNo != null) 'scrap_invoice_no': scrapInvoiceNo,
+      if (scrapInvoiceDate != null) 'scrap_invoice_date': scrapInvoiceDate,
       if (mdLdAmount != null) 'md_ld_amount': mdLdAmount,
       if (mdLdStatus != null) 'md_ld_status': mdLdStatus,
       if (mdLdReleasedDate != null) 'md_ld_released_date': mdLdReleasedDate,
@@ -4092,6 +4198,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     Value<String>? csdStatus,
     Value<double>? scrapAmount,
     Value<double>? scrapGstAmount,
+    Value<String?>? scrapInvoiceNo,
+    Value<DateTime?>? scrapInvoiceDate,
     Value<double>? mdLdAmount,
     Value<String>? mdLdStatus,
     Value<DateTime?>? mdLdReleasedDate,
@@ -4149,6 +4257,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
       csdStatus: csdStatus ?? this.csdStatus,
       scrapAmount: scrapAmount ?? this.scrapAmount,
       scrapGstAmount: scrapGstAmount ?? this.scrapGstAmount,
+      scrapInvoiceNo: scrapInvoiceNo ?? this.scrapInvoiceNo,
+      scrapInvoiceDate: scrapInvoiceDate ?? this.scrapInvoiceDate,
       mdLdAmount: mdLdAmount ?? this.mdLdAmount,
       mdLdStatus: mdLdStatus ?? this.mdLdStatus,
       mdLdReleasedDate: mdLdReleasedDate ?? this.mdLdReleasedDate,
@@ -4245,6 +4355,12 @@ class BillsCompanion extends UpdateCompanion<Bill> {
     }
     if (scrapGstAmount.present) {
       map['scrap_gst_amount'] = Variable<double>(scrapGstAmount.value);
+    }
+    if (scrapInvoiceNo.present) {
+      map['scrap_invoice_no'] = Variable<String>(scrapInvoiceNo.value);
+    }
+    if (scrapInvoiceDate.present) {
+      map['scrap_invoice_date'] = Variable<DateTime>(scrapInvoiceDate.value);
     }
     if (mdLdAmount.present) {
       map['md_ld_amount'] = Variable<double>(mdLdAmount.value);
@@ -4387,6 +4503,8 @@ class BillsCompanion extends UpdateCompanion<Bill> {
           ..write('csdStatus: $csdStatus, ')
           ..write('scrapAmount: $scrapAmount, ')
           ..write('scrapGstAmount: $scrapGstAmount, ')
+          ..write('scrapInvoiceNo: $scrapInvoiceNo, ')
+          ..write('scrapInvoiceDate: $scrapInvoiceDate, ')
           ..write('mdLdAmount: $mdLdAmount, ')
           ..write('mdLdStatus: $mdLdStatus, ')
           ..write('mdLdReleasedDate: $mdLdReleasedDate, ')

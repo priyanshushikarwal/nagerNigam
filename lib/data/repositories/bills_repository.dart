@@ -3,11 +3,13 @@ import 'package:drift/drift.dart';
 import '../../database/app_database.dart' as db;
 import '../../models/bill.dart';
 import '../../models/tn_bill_stats.dart';
+import '../../services/global_id_service.dart';
 
 class BillsDao {
-  BillsDao(this._database);
+  BillsDao(this._database, this._idService);
 
   final db.AppDatabase _database;
+  final GlobalIdService _idService;
 
   static const _billSelect = '''
     SELECT
@@ -28,6 +30,8 @@ class BillsDao {
       b.csd_status,
       b.scrap_amount,
   b.scrap_gst_amount,
+      b.scrap_invoice_no,
+      b.scrap_invoice_date,
       b.md_ld_amount,
       b.md_ld_status,
       b.md_ld_released_date,
@@ -133,6 +137,36 @@ class BillsDao {
       return null;
     }
     return results.first;
+  }
+
+  Future<List<Bill>> getRelatedPvBillsForJobBill(int billId) async {
+    final jobBill = await getBillById(billId);
+    if (jobBill == null) {
+      return const [];
+    }
+    return getRelatedPvBillsForJobBillRecord(jobBill);
+  }
+
+  Future<List<Bill>> getRelatedPvBillsForJobBillRecord(Bill jobBill) async {
+    if (jobBill.invoiceType == 'PV Invoice') {
+      return const [];
+    }
+
+    final candidateBills =
+        jobBill.tenderId != null
+            ? await getBillsByTender(jobBill.tenderId!)
+            : await getBillsByFirm(jobBill.firmId);
+
+    final related =
+        candidateBills.where((candidate) {
+          if (candidate.id == jobBill.id || candidate.invoiceType != 'PV Invoice') {
+            return false;
+          }
+          return _pvBillMatchesJobBill(candidate, jobBill);
+        }).toList();
+
+    related.sort((a, b) => b.billDate.compareTo(a.billDate));
+    return related;
   }
 
   /// Get a bill with all its associated payments
@@ -260,7 +294,11 @@ class BillsDao {
   }
 
   Future<int> addBill(Bill bill) async {
-    final companion = _companionFromBill(bill, forInsert: true);
+    final id = await _idService.nextId();
+    final companion = _companionFromBill(
+      bill.copyWith(id: id),
+      forInsert: true,
+    );
     return _database.into(_database.bills).insert(companion);
   }
 
@@ -316,6 +354,17 @@ class BillsDao {
       ..where((tbl) => tbl.id.equals(billId))).write(
       db.BillsCompanion(
         csdReleasedDate: Value(releaseDate),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> clearCsdReleaseState(int billId) async {
+    await (_database.update(_database.bills)
+      ..where((tbl) => tbl.id.equals(billId))).write(
+      db.BillsCompanion(
+        csdStatus: const Value('Pending'),
+        csdReleasedDate: const Value(null),
         updatedAt: Value(DateTime.now()),
       ),
     );
@@ -505,6 +554,8 @@ class BillsDao {
       csdStatus: row.readNullable<String>('csd_status') ?? 'Pending',
       scrapAmount: row.read<double>('scrap_amount'),
       scrapGstAmount: row.read<double>('scrap_gst_amount'),
+      scrapInvoiceNo: row.readNullable<String>('scrap_invoice_no'),
+      scrapInvoiceDate: row.readNullable<DateTime>('scrap_invoice_date'),
       mdLdAmount: row.read<double>('md_ld_amount'),
       mdLdStatus: row.readNullable<String>('md_ld_status') ?? 'Pending',
       mdLdReleasedDate: row.readNullable<DateTime>('md_ld_released_date'),
@@ -585,6 +636,14 @@ class BillsDao {
       csdStatus: Value(bill.csdStatus),
       scrapAmount: Value(bill.scrapAmount),
       scrapGstAmount: Value(bill.scrapGstAmount),
+      scrapInvoiceNo:
+          bill.scrapInvoiceNo != null
+              ? Value(bill.scrapInvoiceNo!)
+              : const Value.absent(),
+      scrapInvoiceDate:
+          bill.scrapInvoiceDate != null
+              ? Value(bill.scrapInvoiceDate!)
+              : const Value.absent(),
       mdLdAmount: Value(bill.mdLdAmount),
       mdLdStatus: Value(bill.mdLdStatus),
       mdLdReleasedDate:
@@ -728,6 +787,8 @@ class BillsDao {
       gstTdsAmount: billRow.gstTdsAmount,
       scrapAmount: billRow.scrapAmount,
       scrapGstAmount: billRow.scrapGstAmount,
+      scrapInvoiceNo: billRow.scrapInvoiceNo,
+      scrapInvoiceDate: billRow.scrapInvoiceDate,
       mdLdAmount: billRow.mdLdAmount,
       createdAt: billRow.createdAt,
       updatedAt: billRow.updatedAt,
@@ -758,5 +819,18 @@ class BillsDao {
       return bill.invoiceAmount;
     }
     return bill.amount;
+  }
+
+  bool _pvBillMatchesJobBill(Bill pvBill, Bill jobBill) {
+    final jobInvoiceNo = jobBill.invoiceNo?.trim();
+    if (jobInvoiceNo == null || jobInvoiceNo.isEmpty) {
+      return false;
+    }
+
+    final needle = jobInvoiceNo.toLowerCase();
+    final pvInvoiceNo = (pvBill.invoiceNo ?? '').toLowerCase();
+    final pvRemarks = (pvBill.remarks ?? '').toLowerCase();
+
+    return pvInvoiceNo.contains(needle) || pvRemarks.contains(needle);
   }
 }

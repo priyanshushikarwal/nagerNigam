@@ -3,11 +3,13 @@ import 'package:drift/drift.dart';
 import '../../database/app_database.dart' as db;
 import '../../models/tender.dart';
 import '../../models/tn_bill_stats.dart';
+import '../../services/global_id_service.dart';
 
 class TnDao {
-  TnDao(this._database);
+  TnDao(this._database, this._idService);
 
   final db.AppDatabase _database;
+  final GlobalIdService _idService;
 
   Future<List<Tender>> getTendersByFirm(int firmId) async {
     final rows =
@@ -143,10 +145,12 @@ class TnDao {
     String? workDescription,
   }) async {
     final now = DateTime.now();
+    final id = await _idService.nextId();
     final inserted = await _database
         .into(_database.tenders)
         .insertReturning(
           db.TendersCompanion.insert(
+            id: Value(id),
             firmId: firmId,
             tnNumber: tnNumber,
             poNumber: Value(purchaseOrderNo),

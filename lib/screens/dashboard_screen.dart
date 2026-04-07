@@ -79,6 +79,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     setState(() => _isLoading = true);
 
     try {
+      try {
+        await ref.read(syncServiceProvider.notifier).syncAll();
+      } catch (_) {
+        // Continue with local data if sync is unavailable.
+      }
+
       final firm = ref.read(selectedFirmProvider);
       if (firm == null || firm.id == null) return;
 

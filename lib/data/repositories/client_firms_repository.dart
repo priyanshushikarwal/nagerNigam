@@ -2,11 +2,13 @@ import 'package:drift/drift.dart';
 
 import '../../database/app_database.dart' as db;
 import '../models/client_firm.dart';
+import '../../services/global_id_service.dart';
 
 class ClientFirmsDao {
-  ClientFirmsDao(this._database);
+  ClientFirmsDao(this._database, this._idService);
 
   final db.AppDatabase _database;
+  final GlobalIdService _idService;
 
   // Get all client firms
   Future<List<ClientFirm>> getAllClientFirms() async {
@@ -44,10 +46,12 @@ class ClientFirmsDao {
 
   // Insert new client firm
   Future<int> insertClientFirm(ClientFirm firm) async {
+    final id = await _idService.nextId();
     return await _database
         .into(_database.clientFirms)
         .insert(
           db.ClientFirmsCompanion.insert(
+            id: Value(id),
             firmName: firm.firmName,
             address: Value(firm.address),
             contactNo: Value(firm.contactNo),

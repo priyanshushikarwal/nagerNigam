@@ -68,7 +68,10 @@ class _UpdateAvailableDialogState extends State<UpdateAvailableDialog> {
       await Future.delayed(const Duration(milliseconds: 500));
 
       // Install the update and restart
-      await _updaterService.installUpdateAndRestart(downloadedFile);
+      await _updaterService.installUpdateAndRestart(
+        downloadedFile,
+        targetVersion: widget.updateInfo.version,
+      );
 
       // Note: The app will exit, so code below won't execute
     } catch (e) {
